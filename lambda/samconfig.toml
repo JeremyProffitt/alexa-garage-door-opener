@@ -1,0 +1,33 @@
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "garage-door-opener"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "AlexaSkillId=\"\""
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+s3_prefix = "garage-door-opener"
+region = "us-east-1"
+parameter_overrides = "AlexaSkillId=\"\""
+
+[default.package.parameters]
+resolve_s3 = true
+
+[default.sync.parameters]
+watch = true
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[default.local_start_lambda.parameters]
+warm_containers = "EAGER"
