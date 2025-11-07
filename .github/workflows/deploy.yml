@@ -141,7 +141,7 @@ jobs:
           aws ssm put-parameter \
             --name "/garage-door/particle-token" \
             --value "$TOKEN_VALUE" \
-            --type "SecureString" \
+            --type "String" \
             --overwrite || true
 
           aws ssm put-parameter \
