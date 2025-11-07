@@ -157,8 +157,8 @@ main() {
     echo "  Secrets (encrypted):"
     echo "    - PARTICLE_ACCESS_TOKEN"
     echo "    - PARTICLE_DEVICE_ID"
-    echo "    - AWS_ACCESS_KEY_ID"
-    echo "    - AWS_SECRET_ACCESS_KEY"
+    echo "    - AWS_CLIENT_ID"
+    echo "    - AWS_SECRET_KEY"
     echo ""
     echo "  Variables (plain text):"
     echo "    - ALEXA_SKILL_NAME"
@@ -180,8 +180,8 @@ main() {
 
     PARTICLE_TOKEN=$(prompt_secret "PARTICLE_ACCESS_TOKEN" "Particle.io access token (from https://console.particle.io/)")
     PARTICLE_DEVICE=$(prompt_secret "PARTICLE_DEVICE_ID" "Particle device ID (24-character hex string)")
-    AWS_KEY=$(prompt_secret "AWS_ACCESS_KEY_ID" "AWS Access Key ID")
-    AWS_SECRET=$(prompt_secret "AWS_SECRET_ACCESS_KEY" "AWS Secret Access Key")
+    AWS_KEY=$(prompt_secret "AWS_CLIENT_ID" "AWS Access Key ID")
+    AWS_SECRET=$(prompt_secret "AWS_SECRET_KEY" "AWS Secret Access Key")
 
     # Collect variables
     echo ""
@@ -200,8 +200,8 @@ main() {
 
     set_secret "PARTICLE_ACCESS_TOKEN" "$PARTICLE_TOKEN"
     set_secret "PARTICLE_DEVICE_ID" "$PARTICLE_DEVICE"
-    set_secret "AWS_ACCESS_KEY_ID" "$AWS_KEY"
-    set_secret "AWS_SECRET_ACCESS_KEY" "$AWS_SECRET"
+    set_secret "AWS_CLIENT_ID" "$AWS_KEY"
+    set_secret "AWS_SECRET_KEY" "$AWS_SECRET"
 
     # Set variables
     echo ""
