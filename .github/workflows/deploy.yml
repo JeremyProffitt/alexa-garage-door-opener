@@ -262,9 +262,9 @@ jobs:
           FLASH_RESULT=$?
 
           if [ $FLASH_RESULT -eq 0 ]; then
-            echo " Firmware flashed successfully" >> $GITHUB_STEP_SUMMARY
+            echo " Firmware flashed successfully" >> $GITHUB_STEP_SUMMARY
           else
-            echo "� Firmware flash failed (device may be offline)" >> $GITHUB_STEP_SUMMARY
+            echo "� Firmware flash failed (device may be offline)" >> $GITHUB_STEP_SUMMARY
             echo "Firmware binary saved as artifact for manual flashing" >> $GITHUB_STEP_SUMMARY
           fi
 
