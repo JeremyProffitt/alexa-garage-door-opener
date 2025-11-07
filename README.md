@@ -115,8 +115,8 @@ chmod +x scripts/setup-secrets.sh
 ```
 
 Required secrets:
-- `AWS_CLIENT_ID`: AWS access key ID for SAM deployment
-- `AWS_SECRET_KEY`: AWS secret access key
+- `AWS_ACCESS_KEY_ID`: AWS access key ID for SAM deployment
+- `AWS_SECRET_ACCESS_KEY`: AWS secret access key
 - `PARTICLE_ACCESS_TOKEN`: Particle API access token (optional - firmware deployment will be skipped if not provided)
 - `PARTICLE_DEVICE_ID`: Particle device ID for "garage-door-opener" (optional)
 
