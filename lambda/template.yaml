@@ -9,10 +9,6 @@ Globals:
     Runtime: provided.al2023
     Architectures:
       - x86_64
-    Environment:
-      Variables:
-        PARTICLE_ACCESS_TOKEN: '{{resolve:ssm:/garage-door/particle-token:1}}'
-        PARTICLE_DEVICE_ID: '{{resolve:ssm:/garage-door/device-id:1}}'
 
 Parameters:
   AlexaSkillId:
@@ -86,6 +82,8 @@ Resources:
       Environment:
         Variables:
           DOOR_STATE_TABLE: !Ref DoorStateTable
+          PARTICLE_ACCESS_TOKEN: '{{resolve:ssm:/garage-door/particle-token:1}}'
+          PARTICLE_DEVICE_ID: '{{resolve:ssm:/garage-door/device-id:1}}'
       Policies:
         - Statement:
           - Sid: SSMParameterAccess
@@ -133,6 +131,8 @@ Resources:
           DOOR_STATE_TABLE: !Ref DoorStateTable
           NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
           THRESHOLD_MINUTES: !Ref DoorOpenThresholdMinutes
+          PARTICLE_ACCESS_TOKEN: '{{resolve:ssm:/garage-door/particle-token:1}}'
+          PARTICLE_DEVICE_ID: '{{resolve:ssm:/garage-door/device-id:1}}'
       Policies:
         - Statement:
           - Sid: SSMParameterAccess

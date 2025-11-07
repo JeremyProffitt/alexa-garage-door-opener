@@ -134,26 +134,32 @@ jobs:
           PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
           PARTICLE_DEVICE: ${{ secrets.PARTICLE_DEVICE_ID }}
         run: |
-          if [ -n "$PARTICLE_TOKEN" ]; then
-            aws ssm put-parameter \
-              --name "/garage-door/particle-token" \
-              --value "$PARTICLE_TOKEN" \
-              --type "SecureString" \
-              --overwrite || true
-            echo "Particle access token configured in SSM"
+          # Always create parameters (use placeholder if not configured)
+          TOKEN_VALUE="${PARTICLE_TOKEN:-NOTCONFIGURED}"
+          DEVICE_VALUE="${PARTICLE_DEVICE:-NOTCONFIGURED}"
+
+          aws ssm put-parameter \
+            --name "/garage-door/particle-token" \
+            --value "$TOKEN_VALUE" \
+            --type "SecureString" \
+            --overwrite || true
+
+          aws ssm put-parameter \
+            --name "/garage-door/device-id" \
+            --value "$DEVICE_VALUE" \
+            --type "String" \
+            --overwrite || true
+
+          if [ "$TOKEN_VALUE" = "NOTCONFIGURED" ]; then
+            echo "⚠️ Particle access token not configured - using placeholder"
           else
-            echo "Skipping Particle access token (not configured)"
+            echo "✓ Particle access token configured"
           fi
 
-          if [ -n "$PARTICLE_DEVICE" ]; then
-            aws ssm put-parameter \
-              --name "/garage-door/device-id" \
-              --value "$PARTICLE_DEVICE" \
-              --type "String" \
-              --overwrite || true
-            echo "Particle device ID configured in SSM"
+          if [ "$DEVICE_VALUE" = "NOTCONFIGURED" ]; then
+            echo "⚠️ Particle device ID not configured - using placeholder"
           else
-            echo "Skipping Particle device ID (not configured)"
+            echo "✓ Particle device ID configured"
           fi
 
       - name: SAM Build
