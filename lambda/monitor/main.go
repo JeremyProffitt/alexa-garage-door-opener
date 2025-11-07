@@ -249,10 +249,10 @@ func sendNotification(durationMins int64) error {
 
 	var message string
 	if hours > 0 {
-		message = fmt.Sprintf("  GARAGE DOOR ALERT\n\nYour garage door has been open for %d hours and %d minutes.\n\nTime: %s",
+		message = fmt.Sprintf(" GARAGE DOOR ALERT\n\nYour garage door has been open for %d hours and %d minutes.\n\nTime: %s",
 			hours, mins, time.Now().Format("2006-01-02 15:04:05 MST"))
 	} else {
-		message = fmt.Sprintf("  GARAGE DOOR ALERT\n\nYour garage door has been open for %d minutes.\n\nTime: %s",
+		message = fmt.Sprintf(" GARAGE DOOR ALERT\n\nYour garage door has been open for %d minutes.\n\nTime: %s",
 			mins, time.Now().Format("2006-01-02 15:04:05 MST"))
 	}
 
