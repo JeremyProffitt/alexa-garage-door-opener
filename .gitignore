@@ -15,8 +15,7 @@ lambda/.aws-sam/
 lambda/packaged.yaml
 lambda/samconfig.toml.bak
 
-# Go module cache
-go.sum
+# Go module cache (go.sum should be committed for reproducible builds)
 
 # Environment files
 .env
