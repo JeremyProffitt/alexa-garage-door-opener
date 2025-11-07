@@ -108,8 +108,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_CLIENT_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download Alexa Skill Lambda artifact
@@ -129,21 +129,32 @@ jobs:
           chmod +x lambda/alexa-skill/bootstrap
           chmod +x lambda/monitor/bootstrap
 
-      - name: Setup Particle access token in SSM
+      - name: Setup Particle credentials in SSM
+        env:
+          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
+          PARTICLE_DEVICE: ${{ secrets.PARTICLE_DEVICE_ID }}
         run: |
-          aws ssm put-parameter \
-            --name "/garage-door/particle-token" \
-            --value "${{ secrets.PARTICLE_ACCESS_TOKEN }}" \
-            --type "SecureString" \
-            --overwrite || true
+          if [ -n "$PARTICLE_TOKEN" ]; then
+            aws ssm put-parameter \
+              --name "/garage-door/particle-token" \
+              --value "$PARTICLE_TOKEN" \
+              --type "SecureString" \
+              --overwrite || true
+            echo "Particle access token configured in SSM"
+          else
+            echo "Skipping Particle access token (not configured)"
+          fi
 
-      - name: Setup Particle device ID in SSM
-        run: |
-          aws ssm put-parameter \
-            --name "/garage-door/device-id" \
-            --value "${{ secrets.PARTICLE_DEVICE_ID }}" \
-            --type "String" \
-            --overwrite || true
+          if [ -n "$PARTICLE_DEVICE" ]; then
+            aws ssm put-parameter \
+              --name "/garage-door/device-id" \
+              --value "$PARTICLE_DEVICE" \
+              --type "String" \
+              --overwrite || true
+            echo "Particle device ID configured in SSM"
+          else
+            echo "Skipping Particle device ID (not configured)"
+          fi
 
       - name: SAM Build
         working-directory: lambda
@@ -216,17 +227,36 @@ jobs:
         run: npm install -g particle-cli
 
       - name: Login to Particle
+        env:
+          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         run: |
-          echo "${{ secrets.PARTICLE_ACCESS_TOKEN }}" | particle login --token
+          if [ -z "$PARTICLE_TOKEN" ]; then
+            echo "Particle access token not configured, skipping firmware deployment"
+            exit 0
+          fi
+          echo "$PARTICLE_TOKEN" | particle login --token
 
       - name: Compile firmware
+        env:
+          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         working-directory: firmware
         run: |
+          if [ -z "$PARTICLE_TOKEN" ]; then
+            echo "Skipping firmware compilation (Particle token not configured)"
+            exit 0
+          fi
           particle compile argon src/ --saveTo firmware.bin
 
       - name: Flash firmware to device
+        env:
+          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         continue-on-error: true
         run: |
+          if [ -z "$PARTICLE_TOKEN" ]; then
+            echo "Skipping firmware flash (Particle token not configured)" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           set +e
           particle flash garage-door-opener firmware/firmware.bin
           FLASH_RESULT=$?
