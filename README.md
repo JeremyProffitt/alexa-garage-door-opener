@@ -262,6 +262,13 @@ MIT License - See LICENSE file for details
 4. Push to the branch
 5. Create a Pull Request
 
+## CI/CD Pipeline
+
+The GitHub Actions workflow automatically:
+- Builds and tests Go Lambda functions
+- Deploys infrastructure with AWS SAM
+- Compiles and flashes Particle firmware (when configured)
+
 ## Support
 
 For issues and questions:
