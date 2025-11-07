@@ -230,9 +230,9 @@ The firmware publishes these events:
 - Check that device OS version matches project requirements
 
 ### Lambda deployment fails
-- Verify AWS credentials are correct
+- Verify AWS credentials are correct and secrets use names: `AWS_CLIENT_ID` and `AWS_SECRET_KEY`
 - Check SAM CLI version compatibility
-- Ensure IAM permissions for CloudFormation, Lambda, and API Gateway
+- Ensure IAM permissions for CloudFormation, Lambda, DynamoDB, SNS, SSM, and EventBridge
 
 ### Alexa skill doesn't respond
 - Verify Lambda function ARN in skill configuration
