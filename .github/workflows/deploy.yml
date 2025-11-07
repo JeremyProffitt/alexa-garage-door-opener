@@ -1,0 +1,219 @@
+name: Deploy Garage Door Opener
+
+on:
+  push:
+    branches:
+      - main
+      - claude/**
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  GO_VERSION: '1.21'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build-and-test:
+    name: Build and Test Lambda
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download Go dependencies
+        working-directory: lambda/alexa-skill
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Run Go tests
+        working-directory: lambda/alexa-skill
+        run: go test -v ./...
+
+      - name: Build Lambda function
+        working-directory: lambda/alexa-skill
+        run: make build
+
+      - name: Upload Lambda artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-function
+          path: lambda/alexa-skill/bootstrap
+          retention-days: 1
+
+  deploy-lambda:
+    name: Deploy Lambda with SAM
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/')
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-function
+          path: lambda/alexa-skill/
+
+      - name: Make bootstrap executable
+        run: chmod +x lambda/alexa-skill/bootstrap
+
+      - name: Setup Particle access token in SSM
+        run: |
+          aws ssm put-parameter \
+            --name "/garage-door/particle-token" \
+            --value "${{ secrets.PARTICLE_ACCESS_TOKEN }}" \
+            --type "SecureString" \
+            --overwrite || true
+
+      - name: Setup Particle device ID in SSM
+        run: |
+          aws ssm put-parameter \
+            --name "/garage-door/device-id" \
+            --value "${{ secrets.PARTICLE_DEVICE_ID }}" \
+            --type "String" \
+            --overwrite || true
+
+      - name: SAM Build
+        working-directory: lambda
+        run: sam build --use-container
+
+      - name: SAM Deploy
+        working-directory: lambda
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --stack-name garage-door-opener \
+            --region ${{ env.AWS_REGION }} \
+            --capabilities CAPABILITY_IAM \
+            --resolve-s3 \
+            --parameter-overrides "AlexaSkillId=${{ vars.ALEXA_SKILL_ID || '' }}"
+
+      - name: Get Lambda ARN
+        id: lambda-arn
+        run: |
+          ARN=$(aws cloudformation describe-stacks \
+            --stack-name garage-door-opener \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`AlexaSkillFunctionArn`].OutputValue' \
+            --output text)
+          echo "arn=$ARN" >> $GITHUB_OUTPUT
+          echo "Lambda Function ARN: $ARN"
+
+      - name: Output deployment info
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lambda ARN**: ${{ steps.lambda-arn.outputs.arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Stack**: garage-door-opener" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Configure your Alexa skill endpoint with the Lambda ARN above." >> $GITHUB_STEP_SUMMARY
+
+  deploy-firmware:
+    name: Deploy Particle Firmware
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/')
+    continue-on-error: true  # Don't fail if device is offline
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Particle CLI
+        run: npm install -g particle-cli
+
+      - name: Login to Particle
+        run: |
+          echo "${{ secrets.PARTICLE_ACCESS_TOKEN }}" | particle login --token
+
+      - name: Compile firmware
+        working-directory: firmware
+        run: |
+          particle compile argon src/ --saveTo firmware.bin
+
+      - name: Flash firmware to device
+        continue-on-error: true
+        run: |
+          set +e
+          particle flash garage-door-opener firmware/firmware.bin
+          FLASH_RESULT=$?
+
+          if [ $FLASH_RESULT -eq 0 ]; then
+            echo " Firmware flashed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  Firmware flash failed (device may be offline)" >> $GITHUB_STEP_SUMMARY
+            echo "Firmware binary saved as artifact for manual flashing" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          exit 0
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: particle-firmware
+          path: firmware/firmware.bin
+          retention-days: 7
+
+      - name: Firmware deployment summary
+        if: always()
+        run: |
+          echo "## Firmware Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Device**: garage-door-opener" >> $GITHUB_STEP_SUMMARY
+          echo "- **Firmware**: Available as artifact" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To manually flash firmware:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "particle flash garage-door-opener firmware.bin" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "session": {
+    "new": true,
+    "sessionId": "amzn1.echo-api.session.test-session-id",
+    "application": {
+      "applicationId": "amzn1.ask.skill.test-app-id"
+    },
+    "user": {
+      "userId": "amzn1.ask.account.test-user-id"
+    }
+  },
+  "context": {},
+  "request": {
+    "type": "IntentRequest",
+    "requestId": "amzn1.echo-api.request.test-request-id",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "locale": "en-US",
+    "intent": {
+      "name": "PressButtonIntent",
+      "slots": {}
+    }
+  }
+}

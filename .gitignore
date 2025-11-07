@@ -1,0 +1,75 @@
+# Particle firmware build artifacts
+firmware/target/
+firmware/*.bin
+firmware/*.hex
+firmware/photon_firmware_*
+firmware/argon_firmware_*
+
+# Go build artifacts
+lambda/alexa-skill/bootstrap
+lambda/alexa-skill/main
+lambda/alexa-skill/vendor/
+
+# AWS SAM build artifacts
+lambda/.aws-sam/
+lambda/packaged.yaml
+lambda/samconfig.toml.bak
+
+# Go module cache
+go.sum
+
+# Environment files
+.env
+.env.local
+*.env
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Credentials and secrets (NEVER commit these)
+credentials.json
+secrets.json
+particle.json
+aws-credentials.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Compiled source
+*.o
+*.so
+*.dylib
+*.dll
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Python (for any scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Archives
+*.zip
+*.tar.gz
+*.rar

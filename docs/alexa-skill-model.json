@@ -1,0 +1,56 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "garage door",
+      "intents": [
+        {
+          "name": "PressButtonIntent",
+          "slots": [],
+          "samples": [
+            "press the button",
+            "push the button",
+            "activate the garage door",
+            "press garage door button",
+            "push garage door button",
+            "open the garage",
+            "close the garage",
+            "trigger the door",
+            "activate the relay",
+            "press the relay"
+          ]
+        },
+        {
+          "name": "GetStatusIntent",
+          "slots": [],
+          "samples": [
+            "get status",
+            "what's the status",
+            "is the door open",
+            "is the door closed",
+            "check the door",
+            "door status",
+            "tell me the status",
+            "what is the door status"
+          ]
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        }
+      ],
+      "types": []
+    }
+  }
+}
