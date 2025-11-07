@@ -20,10 +20,59 @@ Parameters:
     Description: Alexa Skill ID for skill invocation (leave empty to allow any skill during development)
     Default: ''
 
+  NotificationEmail:
+    Type: String
+    Description: Email address for door open notifications (optional)
+    Default: ''
+
+  DoorOpenThresholdMinutes:
+    Type: Number
+    Description: Minutes door can be open before notification
+    Default: 120
+    MinValue: 1
+
 Conditions:
   HasAlexaSkillId: !Not [!Equals [!Ref AlexaSkillId, '']]
+  HasNotificationEmail: !Not [!Equals [!Ref NotificationEmail, '']]
 
 Resources:
+  # DynamoDB table for door state tracking
+  DoorStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-door-state'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: deviceId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: deviceId
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Project
+          Value: GarageDoorOpener
+
+  # SNS topic for notifications
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-notifications'
+      DisplayName: Garage Door Notifications
+      Tags:
+        - Key: Project
+          Value: GarageDoorOpener
+
+  # SNS subscription (if email provided)
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasNotificationEmail
+    Properties:
+      Protocol: email
+      TopicArn: !Ref NotificationTopic
+      Endpoint: !Ref NotificationEmail
+
   # Lambda function for Alexa Skill
   AlexaSkillFunction:
     Type: AWS::Serverless::Function
@@ -34,6 +83,9 @@ Resources:
       CodeUri: alexa-skill/
       Handler: bootstrap
       Description: Alexa skill handler for garage door control
+      Environment:
+        Variables:
+          DOOR_STATE_TABLE: !Ref DoorStateTable
       Policies:
         - Statement:
           - Sid: SSMParameterAccess
@@ -43,6 +95,15 @@ Resources:
               - ssm:GetParameters
             Resource:
               - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/garage-door/*'
+          - Sid: DynamoDBAccess
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:Query
+            Resource:
+              - !GetAtt DoorStateTable.Arn
       Events:
         AlexaSkill:
           Type: AlexaSkill
@@ -54,6 +115,61 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${AlexaSkillFunction}'
+      RetentionInDays: 7
+
+  # Lambda function for door monitoring (runs every 15 minutes)
+  DoorMonitorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-monitor'
+      CodeUri: monitor/
+      Handler: bootstrap
+      Description: Monitors garage door status and sends notifications
+      Timeout: 30
+      Environment:
+        Variables:
+          DOOR_STATE_TABLE: !Ref DoorStateTable
+          NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
+          THRESHOLD_MINUTES: !Ref DoorOpenThresholdMinutes
+      Policies:
+        - Statement:
+          - Sid: SSMParameterAccess
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Resource:
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/garage-door/*'
+          - Sid: DynamoDBAccess
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:Scan
+            Resource:
+              - !GetAtt DoorStateTable.Arn
+          - Sid: SNSPublish
+            Effect: Allow
+            Action:
+              - sns:Publish
+            Resource:
+              - !Ref NotificationTopic
+      Events:
+        ScheduledCheck:
+          Type: Schedule
+          Properties:
+            Schedule: rate(15 minutes)
+            Description: Check garage door status every 15 minutes
+            Enabled: true
+
+  # CloudWatch Logs for Monitor
+  DoorMonitorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${DoorMonitorFunction}'
       RetentionInDays: 7
 
 Outputs:
@@ -68,6 +184,24 @@ Outputs:
     Value: !Ref AlexaSkillFunction
     Export:
       Name: !Sub '${AWS::StackName}-AlexaSkillName'
+
+  DoorMonitorFunctionArn:
+    Description: ARN of the Door Monitor Lambda Function
+    Value: !GetAtt DoorMonitorFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DoorMonitorArn'
+
+  DoorStateTableName:
+    Description: Name of the DynamoDB table for door state
+    Value: !Ref DoorStateTable
+    Export:
+      Name: !Sub '${AWS::StackName}-DoorStateTable'
+
+  NotificationTopicArn:
+    Description: ARN of the SNS notification topic
+    Value: !Ref NotificationTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-NotificationTopic'
 
   Region:
     Description: AWS Region

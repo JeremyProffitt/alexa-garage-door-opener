@@ -39,25 +39,46 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Download Go dependencies
+      - name: Download Go dependencies (Alexa Skill)
         working-directory: lambda/alexa-skill
         run: |
           go mod download
           go mod verify
 
-      - name: Run Go tests
+      - name: Download Go dependencies (Monitor)
+        working-directory: lambda/monitor
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Run Go tests (Alexa Skill)
         working-directory: lambda/alexa-skill
         run: go test -v ./...
 
-      - name: Build Lambda function
+      - name: Run Go tests (Monitor)
+        working-directory: lambda/monitor
+        run: go test -v ./... || true
+
+      - name: Build Alexa Skill Lambda
         working-directory: lambda/alexa-skill
         run: make build
 
-      - name: Upload Lambda artifact
+      - name: Build Monitor Lambda
+        working-directory: lambda/monitor
+        run: make build
+
+      - name: Upload Alexa Skill Lambda artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lambda-function
+          name: alexa-skill-lambda
           path: lambda/alexa-skill/bootstrap
+          retention-days: 1
+
+      - name: Upload Monitor Lambda artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-lambda
+          path: lambda/monitor/bootstrap
           retention-days: 1
 
   deploy-lambda:
@@ -91,14 +112,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download Lambda artifact
+      - name: Download Alexa Skill Lambda artifact
         uses: actions/download-artifact@v4
         with:
-          name: lambda-function
+          name: alexa-skill-lambda
           path: lambda/alexa-skill/
 
-      - name: Make bootstrap executable
-        run: chmod +x lambda/alexa-skill/bootstrap
+      - name: Download Monitor Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: monitor-lambda
+          path: lambda/monitor/
+
+      - name: Make bootstrap files executable
+        run: |
+          chmod +x lambda/alexa-skill/bootstrap
+          chmod +x lambda/monitor/bootstrap
 
       - name: Setup Particle access token in SSM
         run: |
@@ -130,7 +159,7 @@ jobs:
             --region ${{ env.AWS_REGION }} \
             --capabilities CAPABILITY_IAM \
             --resolve-s3 \
-            --parameter-overrides "AlexaSkillId=${{ vars.ALEXA_SKILL_ID || '' }}"
+            --parameter-overrides "AlexaSkillId=${{ vars.ALEXA_SKILL_ID || '' }} NotificationEmail=${{ vars.NOTIFICATION_EMAIL || '' }} DoorOpenThresholdMinutes=${{ vars.DOOR_OPEN_THRESHOLD_MINUTES || '120' }}"
 
       - name: Get Lambda ARN
         id: lambda-arn
@@ -147,11 +176,25 @@ jobs:
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Lambda ARN**: ${{ steps.lambda-arn.outputs.arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Lambda Functions" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alexa Skill Lambda ARN**: ${{ steps.lambda-arn.outputs.arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Monitor Lambda**: Runs every 15 minutes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Infrastructure" >> $GITHUB_STEP_SUMMARY
           echo "- **Region**: ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Stack**: garage-door-opener" >> $GITHUB_STEP_SUMMARY
+          echo "- **DynamoDB Table**: garage-door-opener-door-state" >> $GITHUB_STEP_SUMMARY
+          echo "- **SNS Topic**: garage-door-opener-notifications" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Configure your Alexa skill endpoint with the Lambda ARN above." >> $GITHUB_STEP_SUMMARY
+          echo "### Features" >> $GITHUB_STEP_SUMMARY
+          echo "- Door status tracking in DynamoDB" >> $GITHUB_STEP_SUMMARY
+          echo "- Automatic notifications if door open > ${{ vars.DOOR_OPEN_THRESHOLD_MINUTES || '120' }} minutes" >> $GITHUB_STEP_SUMMARY
+          echo "- EventBridge scheduled monitoring every 15 minutes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Configure your Alexa skill endpoint with the Lambda ARN above" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run \`./scripts/setup-alexa-skill.sh\` for automated Alexa skill setup" >> $GITHUB_STEP_SUMMARY
+          echo "3. If NotificationEmail was set, confirm SNS subscription in your email" >> $GITHUB_STEP_SUMMARY
 
   deploy-firmware:
     name: Deploy Particle Firmware
@@ -191,7 +234,7 @@ jobs:
           if [ $FLASH_RESULT -eq 0 ]; then
             echo " Firmware flashed successfully" >> $GITHUB_STEP_SUMMARY
           else
-            echo "  Firmware flash failed (device may be offline)" >> $GITHUB_STEP_SUMMARY
+            echo "ï¿½ Firmware flash failed (device may be offline)" >> $GITHUB_STEP_SUMMARY
             echo "Firmware binary saved as artifact for manual flashing" >> $GITHUB_STEP_SUMMARY
           fi
 

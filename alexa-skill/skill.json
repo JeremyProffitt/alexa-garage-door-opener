@@ -1,0 +1,52 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "en-US": {
+          "summary": "Control your garage door with voice commands",
+          "examplePhrases": [
+            "Alexa, ask garage door to press the button",
+            "Alexa, ask garage door for status",
+            "Alexa, ask garage door what's the status"
+          ],
+          "name": "Garage Door Controller",
+          "description": "Control your IoT garage door opener using voice commands. Press the garage door button, check door status, and receive notifications when the door has been open for extended periods. Requires Particle Argon hardware and AWS backend.",
+          "keywords": [
+            "garage",
+            "door",
+            "opener",
+            "iot",
+            "smart home",
+            "particle",
+            "home automation"
+          ],
+          "smallIconUri": "https://via.placeholder.com/108",
+          "largeIconUri": "https://via.placeholder.com/512"
+        }
+      },
+      "isAvailableWorldwide": false,
+      "testingInstructions": "This skill requires physical Particle Argon hardware with garage door relay. For testing, ensure the device 'garage-door-opener' is online and accessible.",
+      "category": "SMART_HOME",
+      "distributionCountries": [
+        "US"
+      ]
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "arn:aws:lambda:us-east-1:ACCOUNT_ID:function:garage-door-opener-alexa-skill"
+        },
+        "interfaces": []
+      }
+    },
+    "manifestVersion": "1.0",
+    "permissions": [],
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "usesPersonalInfo": false,
+      "isChildDirected": false,
+      "isExportCompliant": true,
+      "containsAds": false
+    }
+  }
+}
