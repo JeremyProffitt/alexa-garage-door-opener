@@ -138,17 +138,20 @@ jobs:
           TOKEN_VALUE="${PARTICLE_TOKEN:-NOTCONFIGURED}"
           DEVICE_VALUE="${PARTICLE_DEVICE:-NOTCONFIGURED}"
 
+          # Delete existing parameters to ensure we can recreate with correct type
+          aws ssm delete-parameter --name "/garage-door/particle-token" 2>/dev/null || true
+          aws ssm delete-parameter --name "/garage-door/device-id" 2>/dev/null || true
+
+          # Create parameters with String type (not SecureString)
           aws ssm put-parameter \
             --name "/garage-door/particle-token" \
             --value "$TOKEN_VALUE" \
-            --type "String" \
-            --overwrite || true
+            --type "String"
 
           aws ssm put-parameter \
             --name "/garage-door/device-id" \
             --value "$DEVICE_VALUE" \
-            --type "String" \
-            --overwrite || true
+            --type "String"
 
           if [ "$TOKEN_VALUE" = "NOTCONFIGURED" ]; then
             echo "⚠️ Particle access token not configured - using placeholder"
