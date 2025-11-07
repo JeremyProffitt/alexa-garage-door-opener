@@ -115,10 +115,10 @@ chmod +x scripts/setup-secrets.sh
 ```
 
 Required secrets:
-- `PARTICLE_ACCESS_TOKEN`: Particle API access token
-- `AWS_ACCESS_KEY_ID`: AWS credentials for SAM deployment
-- `AWS_SECRET_ACCESS_KEY`: AWS secret key
-- `PARTICLE_DEVICE_ID`: Device ID for "garage-door-opener"
+- `AWS_CLIENT_ID`: AWS access key ID for SAM deployment
+- `AWS_SECRET_KEY`: AWS secret access key
+- `PARTICLE_ACCESS_TOKEN`: Particle API access token (optional - firmware deployment will be skipped if not provided)
+- `PARTICLE_DEVICE_ID`: Particle device ID for "garage-door-opener" (optional)
 
 Required variables:
 - `ALEXA_SKILL_NAME`: Name of your Alexa skill (e.g., "Garage Door Controller")
@@ -130,15 +130,15 @@ Optional variables:
 - `ALEXA_SKILL_ID`: Alexa Skill ID for production deployment
 
 ### 3. Deploy Infrastructure
-Push to the designated branch to trigger GitHub Actions:
+Push to main or create a branch prefixed with `claude/` to trigger GitHub Actions:
 ```bash
-git push origin claude/garage-door-opener-project-011CUtSMn2nCqYD7is3G378J
+git push origin main
 ```
 
 The workflow will:
-1. Build and test the Go Lambda function
-2. Deploy AWS resources via SAM
-3. Flash firmware to Particle Argon (if online)
+1. Build and test the Go Lambda functions (Alexa Skill & Monitor)
+2. Deploy AWS resources via SAM (Lambda, DynamoDB, SNS, EventBridge)
+3. Compile and flash firmware to Particle Argon (if device is online and credentials are configured)
 
 ### 4. Configure Alexa Skill
 
