@@ -154,6 +154,77 @@ REM Function to setup skill package structure
     cd ..
     exit /b 0
 
+REM Function to get vendor ID
+:get_vendor_id
+    REM Try to get vendor ID from config
+    if exist "%USERPROFILE%\.ask\cli_config" (
+        for /f "tokens=*" %%i in ('powershell -Command "(Get-Content '%USERPROFILE%\.ask\cli_config' | ConvertFrom-Json).profiles.default.vendor_id" 2^>nul') do set "VENDOR_ID=%%i"
+    )
+
+    REM If not in config, try to fetch it
+    if "!VENDOR_ID!"=="" (
+        call :print_status "Fetching vendor ID..."
+        for /f "tokens=*" %%i in ('ask smapi list-vendors 2^>nul ^| powershell -Command "$input | ConvertFrom-Json | Select-Object -ExpandProperty vendors | Select-Object -First 1 -ExpandProperty id"') do set "VENDOR_ID=%%i"
+    )
+
+    if not "!VENDOR_ID!"=="" (
+        call :print_success "Vendor ID: !VENDOR_ID!"
+        exit /b 0
+    ) else (
+        call :print_warning "Could not determine vendor ID"
+        exit /b 1
+    )
+
+REM Function to check if skill already exists
+:check_existing_skill
+    call :print_status "Checking for existing skills..."
+
+    REM Check if we have a skill ID saved
+    if exist ".ask\ask-states.json" (
+        for /f "tokens=*" %%i in ('powershell -Command "(Get-Content '.ask\ask-states.json' | ConvertFrom-Json).profiles.default.skillId" 2^>nul') do set "EXISTING_SKILL_ID=%%i"
+
+        if not "!EXISTING_SKILL_ID!"=="" (
+            if not "!EXISTING_SKILL_ID!"=="null" (
+                call :print_success "Found existing skill ID: !EXISTING_SKILL_ID!"
+                exit /b 0
+            )
+        )
+    )
+
+    REM Get vendor ID
+    call :get_vendor_id
+    if %errorlevel% neq 0 (
+        call :print_status "Cannot check for existing skills without vendor ID"
+        exit /b 1
+    )
+
+    REM Search for skill by name
+    call :print_status "Searching for skill by name..."
+    for /f "tokens=*" %%i in ('ask smapi list-skills-for-vendor --vendor-id "!VENDOR_ID!" 2^>nul ^| powershell -Command "$input | ConvertFrom-Json | Select-Object -ExpandProperty skills | Where-Object { $_.nameByLocale.'en-US' -like '*Garage Door*' } | Select-Object -First 1 -ExpandProperty skillId"') do set "EXISTING_SKILL_ID=%%i"
+
+    if not "!EXISTING_SKILL_ID!"=="" (
+        call :print_success "Found existing skill by name: !EXISTING_SKILL_ID!"
+
+        REM Save the skill ID to ask-states.json
+        if not exist ".ask" mkdir ".ask"
+        (
+            echo {
+            echo   "askcliStatesVersion": "2020-03-31",
+            echo   "profiles": {
+            echo     "default": {
+            echo       "skillId": "!EXISTING_SKILL_ID!"
+            echo     }
+            echo   }
+            echo }
+        ) > ".ask\ask-states.json"
+
+        call :print_status "Updated .ask\ask-states.json with existing skill ID"
+        exit /b 0
+    )
+
+    call :print_status "No existing skill found, will create a new one"
+    exit /b 1
+
 REM Function to create or update skill
 :deploy_skill
     call :print_status "Deploying Alexa skill..."
@@ -166,6 +237,9 @@ REM Function to create or update skill
         call :setup_skill_package
         cd alexa-skill
     )
+
+    REM Check for existing skill before deploying
+    call :check_existing_skill
 
     REM Use ASK CLI v2 deploy command
     call :print_status "Deploying skill with ASK CLI..."

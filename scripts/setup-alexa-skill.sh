@@ -273,6 +273,85 @@ EOF
     cd ..
 }
 
+# Function to get vendor ID from config or API
+get_vendor_id() {
+    local vendor_id=""
+
+    # Try to get from config file
+    if [ -f ~/.ask/cli_config ]; then
+        vendor_id=$(jq -r '.profiles.default.vendor_id // empty' ~/.ask/cli_config 2>/dev/null)
+    fi
+
+    # If not in config, try to fetch it
+    if [ -z "$vendor_id" ]; then
+        print_status "Fetching vendor ID..."
+        set +e
+        local vendor_response=$(ask smapi list-vendors 2>/dev/null)
+        set -e
+
+        if [ -n "$vendor_response" ]; then
+            vendor_id=$(echo "$vendor_response" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+        fi
+    fi
+
+    echo "$vendor_id"
+}
+
+# Function to check if skill already exists
+check_existing_skill() {
+    print_status "Checking for existing skills..."
+
+    # Check if we have a skill ID saved
+    if [ -f .ask/ask-states.json ]; then
+        EXISTING_SKILL_ID=$(grep -o '"skillId":"[^"]*"' .ask/ask-states.json | cut -d'"' -f4 | head -1)
+        if [ -n "$EXISTING_SKILL_ID" ]; then
+            print_success "Found existing skill ID: $EXISTING_SKILL_ID"
+            return 0
+        fi
+    fi
+
+    # Get vendor ID
+    VENDOR_ID=$(get_vendor_id)
+    if [ -z "$VENDOR_ID" ]; then
+        print_warning "Cannot check for existing skills without vendor ID"
+        return 1
+    fi
+
+    print_status "Using vendor ID: $VENDOR_ID"
+
+    # Search for skill by name using ASK CLI
+    set +e
+    SKILLS_LIST=$(ask smapi list-skills-for-vendor --vendor-id "$VENDOR_ID" 2>/dev/null)
+    set -e
+
+    if [ -n "$SKILLS_LIST" ]; then
+        # Look for "Garage Door Controller" in the skills list
+        EXISTING_SKILL_ID=$(echo "$SKILLS_LIST" | grep -B2 "Garage Door Controller" | grep -o '"skillId":"[^"]*"' | cut -d'"' -f4 | head -1)
+
+        if [ -n "$EXISTING_SKILL_ID" ]; then
+            print_success "Found existing skill by name: $EXISTING_SKILL_ID"
+
+            # Save the skill ID to ask-states.json so ask deploy will update it
+            mkdir -p .ask
+            cat > .ask/ask-states.json << EOF
+{
+  "askcliStatesVersion": "2020-03-31",
+  "profiles": {
+    "default": {
+      "skillId": "$EXISTING_SKILL_ID"
+    }
+  }
+}
+EOF
+            print_status "Updated .ask/ask-states.json with existing skill ID"
+            return 0
+        fi
+    fi
+
+    print_status "No existing skill found, will create a new one"
+    return 1
+}
+
 # Function to create or update skill
 deploy_skill() {
     print_status "Deploying Alexa skill..."
@@ -285,6 +364,9 @@ deploy_skill() {
         setup_skill_package
         cd alexa-skill
     fi
+
+    # Check for existing skill before deploying
+    check_existing_skill
 
     # Use ASK CLI v2 deploy command
     print_status "Deploying skill with ASK CLI..."
