@@ -328,8 +328,11 @@ jobs:
             exit 0
           fi
 
+          echo "✓ Logging into Particle Cloud..."
+          particle login --token "$PARTICLE_ACCESS_TOKEN"
+
           echo "✓ Compiling firmware for Particle P2..."
-          particle compile p2 src/ --saveTo firmware.bin --token "$PARTICLE_ACCESS_TOKEN"
+          particle compile p2 src/ --saveTo firmware.bin
 
       - name: Flash firmware to device
         env:
@@ -343,7 +346,7 @@ jobs:
 
           echo "Flashing firmware to garage-door-opener device..."
           set +e
-          particle flash garage-door-opener firmware/firmware.bin --token "$PARTICLE_ACCESS_TOKEN"
+          particle flash garage-door-opener firmware/firmware.bin
           FLASH_RESULT=$?
 
           if [ $FLASH_RESULT -eq 0 ]; then

@@ -66,8 +66,9 @@ configure_ask_cli() {
 
         # Check if ALEXA_LWA_TOKEN is JSON or plain string
         REFRESH_TOKEN=""
+        VENDOR_ID_FROM_JSON=""
         if echo "$ALEXA_LWA_TOKEN" | jq -e . >/dev/null 2>&1; then
-            # Token is JSON, extract refresh_token
+            # Token is JSON, extract refresh_token and vendor_id if present
             print_status "Detected JSON format token, extracting refresh_token..."
             REFRESH_TOKEN=$(echo "$ALEXA_LWA_TOKEN" | jq -r '.refresh_token')
 
@@ -76,37 +77,23 @@ configure_ask_cli() {
                 echo "The ALEXA_LWA_TOKEN appears to be JSON but missing refresh_token field"
                 exit 1
             fi
+
+            # Try to extract vendor_id if it exists in the JSON
+            VENDOR_ID_FROM_JSON=$(echo "$ALEXA_LWA_TOKEN" | jq -r '.vendor_id // empty')
         else
             # Token is plain string
             REFRESH_TOKEN="$ALEXA_LWA_TOKEN"
         fi
 
-        # Create initial config with refresh token
-        jq -n \
-          --arg refresh_token "$REFRESH_TOKEN" \
-          '{
-            profiles: {
-              default: {
-                aws_profile: "default",
-                token: {
-                  access_token: "",
-                  refresh_token: $refresh_token,
-                  token_type: "bearer",
-                  expires_in: 3600,
-                  expires_at: "1970-01-01T00:00:00.000Z"
-                }
-              }
-            }
-          }' > ~/.ask/cli_config
+        # Determine vendor ID to use
+        VENDOR_ID=""
+        if [ -n "$VENDOR_ID_FROM_JSON" ]; then
+            VENDOR_ID="$VENDOR_ID_FROM_JSON"
+            print_success "Using vendor ID from JSON token: $VENDOR_ID"
+        fi
 
-        # Try to fetch vendor ID
-        print_status "Fetching vendor ID from Amazon..."
-        VENDOR_ID=$(ask smapi list-vendors 2>&1 | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-
+        # Create config with refresh token and vendor_id if available
         if [ -n "$VENDOR_ID" ]; then
-            print_success "Vendor ID retrieved: $VENDOR_ID"
-
-            # Update config with vendor ID
             jq -n \
               --arg refresh_token "$REFRESH_TOKEN" \
               --arg vendor_id "$VENDOR_ID" \
@@ -125,11 +112,41 @@ configure_ask_cli() {
                   }
                 }
               }' > ~/.ask/cli_config
-
             print_success "ASK CLI configured with LWA refresh token and vendor ID"
         else
-            print_warning "Could not fetch vendor ID automatically"
-            print_status "Will proceed with deployment (vendor ID may be fetched automatically)"
+            # Create config without vendor_id, try to fetch it
+            jq -n \
+              --arg refresh_token "$REFRESH_TOKEN" \
+              '{
+                profiles: {
+                  default: {
+                    aws_profile: "default",
+                    token: {
+                      access_token: "",
+                      refresh_token: $refresh_token,
+                      token_type: "bearer",
+                      expires_in: 3600,
+                      expires_at: "1970-01-01T00:00:00.000Z"
+                    }
+                  }
+                }
+              }' > ~/.ask/cli_config
+
+            print_status "Attempting to fetch vendor ID from Amazon..."
+            # Use smapi command which will refresh the token automatically
+            VENDOR_ID_RESPONSE=$(ask smapi list-vendors 2>&1)
+            VENDOR_ID=$(echo "$VENDOR_ID_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+            if [ -n "$VENDOR_ID" ]; then
+                print_success "Vendor ID retrieved: $VENDOR_ID"
+                # Update config with vendor ID
+                jq --arg vendor_id "$VENDOR_ID" '.profiles.default.vendor_id = $vendor_id' ~/.ask/cli_config > ~/.ask/cli_config.tmp
+                mv ~/.ask/cli_config.tmp ~/.ask/cli_config
+                print_success "ASK CLI configured with LWA refresh token and vendor ID"
+            else
+                print_warning "Could not fetch vendor ID automatically"
+                print_status "ASK CLI will attempt to fetch it during deployment"
+            fi
         fi
     else
         # Check if manually configured
