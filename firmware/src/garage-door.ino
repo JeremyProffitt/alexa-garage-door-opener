@@ -1,8 +1,8 @@
 /*
- * Alexa Garage Door Opener - Particle Argon Firmware
+ * Alexa Garage Door Opener - Particle P2 (Photon2) Firmware
  *
  * Hardware:
- * - Particle Argon
+ * - Particle P2 (Photon2)
  * - VL53L4CD Time-of-Flight Distance Sensor (I2C)
  * - Adafruit 2.4" TFT FeatherWing (ILI9341)
  * - Relay Module (D7)

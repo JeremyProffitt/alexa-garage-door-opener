@@ -3,7 +3,8 @@ firmware/target/
 firmware/*.bin
 firmware/*.hex
 firmware/photon_firmware_*
-firmware/argon_firmware_*
+firmware/p2_firmware_*
+firmware/photon2_firmware_*
 
 # Go build artifacts
 lambda/alexa-skill/bootstrap

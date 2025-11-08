@@ -1,11 +1,11 @@
 # Alexa Garage Door Opener
 
-An IoT garage door controller using Particle Argon hardware with Alexa voice control integration.
+An IoT garage door controller using Particle P2 (Photon2) hardware with Alexa voice control integration.
 
 ## Overview
 
 This project enables voice-controlled garage door operation through Amazon Alexa using physical hardware components:
-- **Particle Argon** microcontroller
+- **Particle P2 (Photon2)** microcontroller
 - **VL53L4CD** Time-of-Flight distance sensor (for door position detection)
 - **Adafruit 2.4" TFT FeatherWing** touchscreen display (320x240)
 - **Relay module** for garage door button control
@@ -39,7 +39,7 @@ This project enables voice-controlled garage door operation through Amazon Alexa
 └────────┬─────────┘
          ↓
 ┌──────────────────────┐         ┌────────────────────┐
-│ Particle Argon       │         │ Monitor Lambda (Go)│
+│ Particle P2 (Photon2)│         │ Monitor Lambda (Go)│
 │ - VL53L4CD Sensor    │         │ (Every 15 min)     │
 │ - TFT Display        │         └─────────┬──────────┘
 │ - Relay Control      │                   ↓
@@ -55,7 +55,7 @@ This project enables voice-controlled garage door operation through Amazon Alexa
 
 ```
 .
-├── firmware/           # Particle Argon C++ firmware
+├── firmware/           # Particle P2 (Photon2) C++ firmware
 │   ├── src/
 │   │   └── garage-door.ino
 │   └── project.properties
@@ -90,14 +90,14 @@ This project enables voice-controlled garage door operation through Amazon Alexa
 ## Hardware Setup
 
 ### Components
-1. **Particle Argon**: Main microcontroller with WiFi/BLE
+1. **Particle P2 (Photon2)**: Main microcontroller with WiFi/BLE
 2. **VL53L4CD Sensor**: I2C distance sensor (0x29)
 3. **Adafruit 2.4" TFT FeatherWing**: ILI9341 320x240 touchscreen
 4. **Relay Module**: Connected to D7 for garage door button control
 
 ### Wiring
 - VL53L4CD: I2C (SDA/SCL pins)
-- TFT Display: FeatherWing stacks directly on Argon
+- TFT Display: FeatherWing stacks directly on P2
 - Relay: D7 (control), 3.3V (VCC), GND
 
 ## Quick Start
@@ -138,7 +138,7 @@ git push origin main
 The workflow will:
 1. Build and test the Go Lambda functions (Alexa Skill & Monitor)
 2. Deploy AWS resources via SAM (Lambda, DynamoDB, SNS, EventBridge)
-3. Compile and flash firmware to Particle Argon (if device is online and credentials are configured)
+3. Compile and flash firmware to Particle P2 (if device is online and credentials are configured)
 
 ### 4. Configure Alexa Skill
 
@@ -162,7 +162,7 @@ See `docs/alexa-skill-setup.md` for detailed manual setup instructions.
 ### Testing Firmware Locally
 ```bash
 cd firmware
-particle compile argon src/garage-door.ino
+particle compile p2 src/garage-door.ino
 ```
 
 ### Testing Lambda Locally

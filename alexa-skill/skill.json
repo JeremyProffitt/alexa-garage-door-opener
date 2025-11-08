@@ -10,7 +10,7 @@
             "Alexa, ask garage door what's the status"
           ],
           "name": "Garage Door Controller",
-          "description": "Control your IoT garage door opener using voice commands. Press the garage door button, check door status, and receive notifications when the door has been open for extended periods. Requires Particle Argon hardware and AWS backend.",
+          "description": "Control your IoT garage door opener using voice commands. Press the garage door button, check door status, and receive notifications when the door has been open for extended periods. Requires Particle P2 (Photon2) hardware and AWS backend.",
           "keywords": [
             "garage",
             "door",
@@ -25,7 +25,7 @@
         }
       },
       "isAvailableWorldwide": false,
-      "testingInstructions": "This skill requires physical Particle Argon hardware with garage door relay. For testing, ensure the device 'garage-door-opener' is online and accessible.",
+      "testingInstructions": "This skill requires physical Particle P2 (Photon2) hardware with garage door relay. For testing, ensure the device 'garage-door-opener' is online and accessible.",
       "category": "SMART_HOME",
       "distributionCountries": [
         "US"

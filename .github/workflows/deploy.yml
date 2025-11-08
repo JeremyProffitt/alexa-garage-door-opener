@@ -254,7 +254,7 @@ jobs:
             echo "Skipping firmware compilation (Particle token not configured)"
             exit 0
           fi
-          particle compile argon src/ --saveTo firmware.bin
+          particle compile p2 src/ --saveTo firmware.bin
 
       - name: Flash firmware to device
         env:
