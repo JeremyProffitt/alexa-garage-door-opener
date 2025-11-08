@@ -218,7 +218,7 @@ get_lambda_arn() {
         if [ -z "$LAMBDA_ARN" ]; then
             print_error "Could not fetch Lambda ARN from CloudFormation"
             echo "Please provide Lambda ARN as argument:"
-            echo "  ./scripts/setup-alexa-skill.sh arn:aws:lambda:us-east-2:123456789012:function:..."
+            echo "  ./scripts/setup-alexa-skill.sh arn:aws:lambda:us-east-1:123456789012:function:..."
             exit 1
         fi
 
@@ -235,7 +235,7 @@ update_skill_json() {
 
     # Update skill.json
     sed -i.bak "s|ACCOUNT_ID|${ACCOUNT_ID}|g" alexa-skill/skill.json
-    sed -i.bak "s|arn:aws:lambda:us-east-2:${ACCOUNT_ID}:function:garage-door-opener-alexa-skill|${LAMBDA_ARN}|g" alexa-skill/skill.json
+    sed -i.bak "s|arn:aws:lambda:us-east-1:${ACCOUNT_ID}:function:garage-door-opener-alexa-skill|${LAMBDA_ARN}|g" alexa-skill/skill.json
 
     print_success "skill.json updated"
 }

@@ -96,7 +96,7 @@ Step-by-step guide to creating and configuring the Alexa skill for garage door c
 1. **Get Lambda ARN**
    - After GitHub Actions deployment completes
    - Check deployment logs or AWS Console
-   - ARN format: `arn:aws:lambda:us-east-2:123456789012:function:garage-door-opener-alexa-skill`
+   - ARN format: `arn:aws:lambda:us-east-1:123456789012:function:garage-door-opener-alexa-skill`
 
 2. **Configure in Alexa Console**
    - Click "Endpoint" in left sidebar

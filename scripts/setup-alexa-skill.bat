@@ -100,7 +100,7 @@ REM Function to get Lambda ARN
     if "!LAMBDA_ARN!"=="" (
         call :print_error "Could not fetch Lambda ARN from CloudFormation"
         echo Please provide Lambda ARN as argument:
-        echo   scripts\setup-alexa-skill.bat arn:aws:lambda:us-east-2:123456789012:function:...
+        echo   scripts\setup-alexa-skill.bat arn:aws:lambda:us-east-1:123456789012:function:...
         exit /b 1
     )
 
@@ -116,7 +116,7 @@ REM Function to update skill.json with Lambda ARN
 
     REM Update skill.json using PowerShell for reliable file manipulation
     powershell -Command "(Get-Content 'alexa-skill\skill.json') -replace 'ACCOUNT_ID', '!ACCOUNT_ID!' | Set-Content 'alexa-skill\skill.json'"
-    powershell -Command "(Get-Content 'alexa-skill\skill.json') -replace 'arn:aws:lambda:us-east-2:!ACCOUNT_ID!:function:garage-door-opener-alexa-skill', '!LAMBDA_ARN!' | Set-Content 'alexa-skill\skill.json'"
+    powershell -Command "(Get-Content 'alexa-skill\skill.json') -replace 'arn:aws:lambda:us-east-1:!ACCOUNT_ID!:function:garage-door-opener-alexa-skill', '!LAMBDA_ARN!' | Set-Content 'alexa-skill\skill.json'"
 
     call :print_success "skill.json updated"
     exit /b 0

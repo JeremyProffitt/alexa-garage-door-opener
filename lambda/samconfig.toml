@@ -3,7 +3,7 @@ version = 0.1
 [default]
 [default.global.parameters]
 stack_name = "garage-door-opener"
-region = "us-east-2"
+region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "AlexaSkillId=\"\""
@@ -17,7 +17,7 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "garage-door-opener"
-region = "us-east-2"
+region = "us-east-1"
 parameter_overrides = "AlexaSkillId=\"\""
 
 [default.package.parameters]

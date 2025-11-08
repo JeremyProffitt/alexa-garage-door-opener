@@ -196,7 +196,7 @@ REM Main script
     call :prompt_variable "ALEXA_SKILL_NAME" "Alexa skill name" "Garage Door Controller"
     set "ALEXA_SKILL=!var_value!"
 
-    call :prompt_variable "AWS_REGION" "AWS region" "us-east-2"
+    call :prompt_variable "AWS_REGION" "AWS region" "us-east-1"
     set "AWS_REGION_VAR=!var_value!"
 
     REM Set secrets
