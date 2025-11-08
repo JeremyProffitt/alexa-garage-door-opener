@@ -19,8 +19,7 @@
 #include "Particle.h"
 #include "Adafruit_ILI9341.h"
 #include "Adafruit_GFX.h"
-#include "VL53L4CD_api.h"
-#include "VL53L4CD_calibration.h"
+#include "vl53l4cd_class.h"
 
 // Serial for debugging
 SYSTEM_MODE(AUTOMATIC);
@@ -31,6 +30,7 @@ SYSTEM_THREAD(ENABLED);
 #define STMPE_CS 6
 #define TFT_CS   9
 #define TFT_DC   10
+#define VL53L4CD_XSHUT -1  // No XSHUT pin used
 
 // Distance thresholds (in mm)
 #define DOOR_CLOSED_THRESHOLD 500    // Less than 500mm = closed
@@ -49,7 +49,7 @@ SYSTEM_THREAD(ENABLED);
 
 // Global objects
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
-VL53L4CD_Dev_t vl53l4cd;
+VL53L4CD sensor(&Wire, VL53L4CD_XSHUT);
 
 // Global state variables
 char doorStatus[20] = "unknown";
@@ -130,26 +130,20 @@ void setupSensor() {
     // Initialize I2C
     Wire.begin();
 
-    // Initialize sensor structure
-    vl53l4cd.I2cDevAddr = 0x29;
-    vl53l4cd.I2cHandle = &Wire;
+    // Configure sensor
+    sensor.begin();
 
-    // Sensor initialization
-    uint8_t status;
-    uint8_t sensorState = 0;
+    // Switch off sensor
+    sensor.VL53L4CD_Off();
 
-    status = VL53L4CD_SensorInit(&vl53l4cd);
-    if (status) {
-        Serial.printlnf("VL53L4CD init failed: %d", status);
-        return;
-    }
+    // Initialize sensor
+    sensor.InitSensor();
+
+    // Set ranging timing - highest accuracy (200ms timing budget, low power mode disabled)
+    sensor.VL53L4CD_SetRangeTiming(200, 0);
 
     // Start ranging
-    status = VL53L4CD_StartRanging(&vl53l4cd);
-    if (status) {
-        Serial.printlnf("VL53L4CD start ranging failed: %d", status);
-        return;
-    }
+    sensor.VL53L4CD_StartRanging();
 
     Serial.println("VL53L4CD sensor initialized successfully");
 }
@@ -173,40 +167,45 @@ void setupDisplay() {
 void readSensor() {
     uint8_t dataReady = 0;
     VL53L4CD_Result_t results;
+    uint8_t status;
 
     // Check if data is ready
-    VL53L4CD_CheckForDataReady(&vl53l4cd, &dataReady);
+    status = sensor.VL53L4CD_CheckForDataReady(&dataReady);
 
-    if (dataReady) {
+    if ((!status) && dataReady) {
+        // Clear interrupt
+        sensor.VL53L4CD_ClearInterrupt();
+
         // Get measurement
-        VL53L4CD_GetResult(&vl53l4cd, &results);
-        VL53L4CD_ClearInterrupt(&vl53l4cd);
+        sensor.VL53L4CD_GetResult(&results);
 
-        // Update distance (convert to mm)
-        distance = results.distance_mm;
+        // Update distance - only use valid measurements (range_status == 0)
+        if (results.range_status == 0) {
+            distance = results.distance_mm;
 
-        // Determine door status
-        const char* oldStatus = doorStatus;
+            // Determine door status
+            const char* oldStatus = doorStatus;
 
-        if (distance < DOOR_CLOSED_THRESHOLD) {
-            strcpy(doorStatus, "closed");
-        } else if (distance > DOOR_OPEN_THRESHOLD) {
-            strcpy(doorStatus, "open");
-        } else {
-            strcpy(doorStatus, "moving");
-        }
+            if (distance < DOOR_CLOSED_THRESHOLD) {
+                strcpy(doorStatus, "closed");
+            } else if (distance > DOOR_OPEN_THRESHOLD) {
+                strcpy(doorStatus, "open");
+            } else {
+                strcpy(doorStatus, "moving");
+            }
 
-        // Publish status change
-        if (strcmp(oldStatus, doorStatus) != 0) {
-            Particle.publish("door/status", doorStatus, PRIVATE);
-            Serial.printlnf("Door status changed: %s (distance: %d mm)", doorStatus, distance);
-        }
+            // Publish status change
+            if (strcmp(oldStatus, doorStatus) != 0) {
+                Particle.publish("door/status", doorStatus, PRIVATE);
+                Serial.printlnf("Door status changed: %s (distance: %d mm)", doorStatus, distance);
+            }
 
-        // Publish distance periodically
-        static unsigned long lastPublish = 0;
-        if (millis() - lastPublish >= 10000) {
-            Particle.publish("door/distance", String(distance), PRIVATE);
-            lastPublish = millis();
+            // Publish distance periodically
+            static unsigned long lastPublish = 0;
+            if (millis() - lastPublish >= 10000) {
+                Particle.publish("door/distance", String(distance), PRIVATE);
+                lastPublish = millis();
+            }
         }
     }
 }
