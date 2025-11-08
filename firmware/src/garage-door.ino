@@ -98,8 +98,18 @@ void setup() {
 }
 
 void loop() {
+    static unsigned long lastLoopLog = 0;
+
+    // Log loop execution every 10 seconds
+    if (millis() - lastLoopLog >= 10000) {
+        Serial.printlnf("Loop running - Status: %s, Distance: %d mm, Relay: %s",
+                        doorStatus, distance, relayActive ? "ACTIVE" : "INACTIVE");
+        lastLoopLog = millis();
+    }
+
     // Handle relay timing
     if (relayActive && (millis() - relayStartTime >= RELAY_PULSE_DURATION)) {
+        Serial.println("Relay pulse duration elapsed, deactivating...");
         deactivateRelay();
     }
 
@@ -111,6 +121,7 @@ void loop() {
 
     // Update display every 1000ms
     if (millis() - lastDisplayUpdate >= 1000) {
+        Serial.println("Updating display status...");
         updateStatusDisplay();
         lastDisplayUpdate = millis();
     }
@@ -150,21 +161,34 @@ void setupSensor() {
 
 void setupDisplay() {
     Serial.println("Initializing TFT display...");
+    Serial.printlnf("TFT_CS pin: %d, TFT_DC pin: %d", TFT_CS, TFT_DC);
 
+    // Initialize SPI explicitly
+    SPI.begin();
+    Serial.println("SPI initialized");
+
+    // Initialize the display
     tft.begin();
+    Serial.println("tft.begin() called");
+
     tft.setRotation(1); // Landscape mode
+    Serial.println("Rotation set to 1 (landscape)");
+
     tft.fillScreen(COLOR_BACKGROUND);
+    Serial.println("Screen filled with background color");
 
     // Draw title
     tft.setTextColor(COLOR_TEXT);
     tft.setTextSize(3);
     tft.setCursor(40, 10);
     tft.println("Garage Door");
+    Serial.println("Title drawn");
 
-    Serial.println("TFT display initialized");
+    Serial.println("TFT display initialized successfully");
 }
 
 void readSensor() {
+    static unsigned long lastSensorLog = 0;
     uint8_t dataReady = 0;
     VL53L4CD_Result_t results;
     uint8_t status;
@@ -178,6 +202,13 @@ void readSensor() {
 
         // Get measurement
         sensor.VL53L4CD_GetResult(&results);
+
+        // Log sensor readings every 5 seconds
+        if (millis() - lastSensorLog >= 5000) {
+            Serial.printlnf("Sensor reading - Distance: %d mm, Range status: %d",
+                            results.distance_mm, results.range_status);
+            lastSensorLog = millis();
+        }
 
         // Update distance - only use valid measurements (range_status == 0)
         if (results.range_status == 0) {
@@ -197,7 +228,8 @@ void readSensor() {
             // Publish status change
             if (strcmp(oldStatus, doorStatus) != 0) {
                 Particle.publish("door/status", doorStatus, PRIVATE);
-                Serial.printlnf("Door status changed: %s (distance: %d mm)", doorStatus, distance);
+                Serial.printlnf("Door status changed: %s -> %s (distance: %d mm)",
+                                oldStatus, doorStatus, distance);
             }
 
             // Publish distance periodically
@@ -206,6 +238,8 @@ void readSensor() {
                 Particle.publish("door/distance", String(distance), PRIVATE);
                 lastPublish = millis();
             }
+        } else {
+            Serial.printlnf("Invalid sensor reading - range_status: %d", results.range_status);
         }
     }
 }
@@ -228,6 +262,14 @@ void updateDisplay() {
 }
 
 void updateStatusDisplay() {
+    static unsigned long lastDisplayLog = 0;
+
+    // Log display updates every 5 seconds
+    if (millis() - lastDisplayLog >= 5000) {
+        Serial.printlnf("updateStatusDisplay() - Status: %s, Distance: %d mm", doorStatus, distance);
+        lastDisplayLog = millis();
+    }
+
     // Clear status area
     tft.fillRect(0, 60, 320, 100, COLOR_BACKGROUND);
 
@@ -258,6 +300,8 @@ void updateStatusDisplay() {
 }
 
 void drawButton(const char* label, uint16_t color, bool pressed) {
+    Serial.printlnf("drawButton() - Label: %s, Pressed: %s", label, pressed ? "YES" : "NO");
+
     int x = 90;
     int y = 180;
     int w = 140;
