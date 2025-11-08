@@ -122,7 +122,7 @@ Required secrets:
 
 Required variables:
 - `ALEXA_SKILL_NAME`: Name of your Alexa skill (e.g., "Garage Door Controller")
-- `AWS_REGION`: AWS region (default: us-east-1)
+- `AWS_REGION`: AWS region (default: us-east-2)
 
 Optional variables:
 - `NOTIFICATION_EMAIL`: Email for door open alerts (will receive SNS subscription confirmation)

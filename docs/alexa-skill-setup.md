@@ -31,7 +31,7 @@ Step-by-step guide to creating and configuring the Alexa skill for garage door c
 ## Step 2: Configure Invocation
 
 1. **Set Invocation Name**
-   - In left sidebar, click "Invocations" ’ "Skill Invocation Name"
+   - In left sidebar, click "Invocations" ï¿½ "Skill Invocation Name"
    - Enter: `garage door`
    - This is what users say to invoke the skill: "Alexa, ask garage door..."
    - Click "Save Model"
@@ -96,7 +96,7 @@ Step-by-step guide to creating and configuring the Alexa skill for garage door c
 1. **Get Lambda ARN**
    - After GitHub Actions deployment completes
    - Check deployment logs or AWS Console
-   - ARN format: `arn:aws:lambda:us-east-1:123456789012:function:garage-door-opener-alexa-skill`
+   - ARN format: `arn:aws:lambda:us-east-2:123456789012:function:garage-door-opener-alexa-skill`
 
 2. **Configure in Alexa Console**
    - Click "Endpoint" in left sidebar
@@ -144,7 +144,7 @@ If you want to use location-based features in the future:
 ### On Physical Device
 
 1. **Enable Skill on Your Account**
-   - Alexa app ’ Skills & Games ’ Your Skills ’ Dev
+   - Alexa app ï¿½ Skills & Games ï¿½ Your Skills ï¿½ Dev
    - Find your skill and enable it
 
 2. **Test Commands**:
@@ -161,7 +161,7 @@ If you want to use location-based features in the future:
    - Suggested: Garage door or house icon
 
 2. **Upload**
-   - Click "Distribution" ’ "Skill Preview"
+   - Click "Distribution" ï¿½ "Skill Preview"
    - Upload small and large icons
    - Click "Save"
 
@@ -201,7 +201,7 @@ If you plan to publish the skill (optional):
    Should show Alexa skill permissions
 
 3. **Check CloudWatch Logs**
-   - AWS Console ’ CloudWatch ’ Log Groups
+   - AWS Console ï¿½ CloudWatch ï¿½ Log Groups
    - Find `/aws/lambda/garage-door-opener-alexa-skill`
    - Review recent logs for errors
 

@@ -190,7 +190,7 @@ main() {
     echo "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP"
 
     ALEXA_SKILL=$(prompt_variable "ALEXA_SKILL_NAME" "Alexa skill name" "Garage Door Controller")
-    AWS_REGION_VAR=$(prompt_variable "AWS_REGION" "AWS region" "us-east-1")
+    AWS_REGION_VAR=$(prompt_variable "AWS_REGION" "AWS region" "us-east-2")
 
     # Set secrets
     echo ""
