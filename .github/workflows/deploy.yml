@@ -131,11 +131,11 @@ jobs:
 
       - name: Setup Particle credentials in SSM
         env:
-          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
+          PARTICLE_ACCESS_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
           PARTICLE_DEVICE: ${{ secrets.PARTICLE_DEVICE_ID }}
         run: |
           # Always create parameters (use placeholder if not configured)
-          TOKEN_VALUE="${PARTICLE_TOKEN:-NOTCONFIGURED}"
+          TOKEN_VALUE="${PARTICLE_ACCESS_TOKEN:-NOTCONFIGURED}"
           DEVICE_VALUE="${PARTICLE_DEVICE:-NOTCONFIGURED}"
 
           # Delete existing parameters to ensure we can recreate with correct type
@@ -320,30 +320,30 @@ jobs:
 
       - name: Compile firmware
         env:
-          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
+          PARTICLE_ACCESS_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         working-directory: firmware
         run: |
-          if [ -z "$PARTICLE_TOKEN" ]; then
+          if [ -z "$PARTICLE_ACCESS_TOKEN" ]; then
             echo "⚠️ PARTICLE_ACCESS_TOKEN not configured, skipping firmware compilation"
             exit 0
           fi
 
           echo "✓ Compiling firmware for Particle P2..."
-          particle compile p2 src/ --saveTo firmware.bin
+          particle compile p2 src/ --saveTo firmware.bin --token "$PARTICLE_ACCESS_TOKEN"
 
       - name: Flash firmware to device
         env:
-          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
+          PARTICLE_ACCESS_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         continue-on-error: true
         run: |
-          if [ -z "$PARTICLE_TOKEN" ]; then
+          if [ -z "$PARTICLE_ACCESS_TOKEN" ]; then
             echo "⚠️ PARTICLE_ACCESS_TOKEN not configured, skipping firmware flash" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
           echo "Flashing firmware to garage-door-opener device..."
           set +e
-          particle flash garage-door-opener firmware/firmware.bin
+          particle flash garage-door-opener firmware/firmware.bin --token "$PARTICLE_ACCESS_TOKEN"
           FLASH_RESULT=$?
 
           if [ $FLASH_RESULT -eq 0 ]; then
@@ -366,12 +366,12 @@ jobs:
       - name: Firmware deployment summary
         if: always()
         env:
-          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
+          PARTICLE_ACCESS_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         run: |
           echo "## Firmware Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ -z "$PARTICLE_TOKEN" ]; then
+          if [ -z "$PARTICLE_ACCESS_TOKEN" ]; then
             echo "- **Status**: ⚠️ Skipped (PARTICLE_ACCESS_TOKEN not configured)" >> $GITHUB_STEP_SUMMARY
             echo "- **Device**: garage-door-opener" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
