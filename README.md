@@ -7,7 +7,7 @@ An IoT garage door controller using Particle P2 (Photon2) hardware with Alexa vo
 This project enables voice-controlled garage door operation through Amazon Alexa using physical hardware components:
 - **Particle P2 (Photon2)** microcontroller
 - **VL53L4CD** Time-of-Flight distance sensor (for door position detection)
-- **Adafruit 2.4" TFT FeatherWing** touchscreen display (320x240)
+- **0.96" OLED Display** SSD1306 (I2C at 0x3D, 128x64)
 - **Relay module** for garage door button control
 
 ## Features
@@ -92,12 +92,12 @@ This project enables voice-controlled garage door operation through Amazon Alexa
 ### Components
 1. **Particle P2 (Photon2)**: Main microcontroller with WiFi/BLE
 2. **VL53L4CD Sensor**: I2C distance sensor (0x29)
-3. **Adafruit 2.4" TFT FeatherWing**: ILI9341 320x240 touchscreen
+3. **0.96" OLED Display**: SSD1306 128x64 (I2C at 0x3D)
 4. **Relay Module**: Connected to D7 for garage door button control
 
 ### Wiring
-- VL53L4CD: I2C (SDA/SCL pins)
-- TFT Display: FeatherWing stacks directly on P2
+- VL53L4CD: I2C (SDA/SCL pins, address 0x29)
+- OLED Display: I2C (SDA/SCL pins, address 0x3D)
 - Relay: D7 (control), 3.3V (VCC), GND
 
 ## Quick Start
@@ -203,8 +203,8 @@ Response includes duration if door is open:
 - "The garage door is currently open. It has been open for 2 hours and 15 minutes."
 
 ### Manual Control
-- Use the TFT touchscreen to press the virtual button
-- View door status (open/closed) based on VL53L4CD sensor readings
+- View door status (open/closed) on the OLED display
+- Display shows status, distance, and relay state in real-time
 
 ### Automatic Notifications
 

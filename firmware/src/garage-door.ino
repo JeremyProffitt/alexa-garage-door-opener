@@ -3,8 +3,8 @@
  *
  * Hardware:
  * - Particle P2 (Photon2)
- * - VL53L4CD Time-of-Flight Distance Sensor (I2C)
- * - Adafruit 2.4" TFT FeatherWing (ILI9341)
+ * - VL53L4CD Time-of-Flight Distance Sensor (I2C at 0x29)
+ * - 0.96" OLED Display SSD1306 (I2C at 0x3D, 128x64)
  * - Relay Module (D7)
  *
  * Cloud Functions:
@@ -17,7 +17,7 @@
  */
 
 #include "Particle.h"
-#include "Adafruit_ILI9341.h"
+#include "Adafruit_SSD1306.h"
 #include "Adafruit_GFX.h"
 #include "vl53l4cd_class.h"
 
@@ -27,10 +27,21 @@ SYSTEM_THREAD(ENABLED);
 
 // Pin Definitions
 #define RELAY_PIN D7
-#define STMPE_CS 6
-#define TFT_CS   9
-#define TFT_DC   10
 #define VL53L4CD_XSHUT -1  // No XSHUT pin used
+
+// OLED Display Settings
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1  // No reset pin
+#define OLED_ADDRESS 0x3D
+
+// Define color constants if not already defined
+#ifndef SSD1306_WHITE
+#define SSD1306_WHITE 1
+#endif
+#ifndef SSD1306_BLACK
+#define SSD1306_BLACK 0
+#endif
 
 // Distance thresholds (in mm)
 #define DOOR_CLOSED_THRESHOLD 500    // Less than 500mm = closed
@@ -39,17 +50,8 @@ SYSTEM_THREAD(ENABLED);
 // Relay timing
 #define RELAY_PULSE_DURATION 1000    // 1 second
 
-// Display colors
-#define COLOR_BACKGROUND ILI9341_BLACK
-#define COLOR_TEXT ILI9341_WHITE
-#define COLOR_OPEN ILI9341_GREEN
-#define COLOR_CLOSED ILI9341_RED
-#define COLOR_UNKNOWN ILI9341_YELLOW
-#define COLOR_BUTTON ILI9341_BLUE
-
 // Global objects
-// Using 2-parameter constructor like parking-garage-floor-tracker
-Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 VL53L4CD sensor(&Wire, VL53L4CD_XSHUT);
 
 // Global state variables
@@ -70,7 +72,6 @@ void readSensor();
 void updateDisplay();
 void activateRelay();
 void deactivateRelay();
-void drawButton(const char* label, uint16_t color, bool pressed = false);
 void updateStatusDisplay();
 
 void setup() {
@@ -161,29 +162,29 @@ void setupSensor() {
 }
 
 void setupDisplay() {
-    Serial.println("Initializing 2.4\" TFT FeatherWing display...");
-    Serial.printlnf("TFT_CS pin: %d, TFT_DC pin: %d", TFT_CS, TFT_DC);
+    Serial.println("Initializing 0.96\" OLED display (128x64)...");
+    Serial.printlnf("OLED I2C Address: 0x%02X", OLED_ADDRESS);
 
-    // Initialize TFT (RK library handles SPI initialization automatically)
-    tft.begin();
-    Serial.println("tft.begin() called - RK library initialized SPI");
+    // Initialize OLED display
+    if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
+        Serial.println("OLED allocation failed!");
+        // Continue anyway, display just won't work
+        return;
+    }
 
-    // Set orientation: 1 = landscape mode (320x240)
-    tft.setRotation(1);
-    Serial.println("Rotation set to 1 (landscape)");
+    Serial.println("OLED initialized successfully");
 
-    // Clear screen
-    tft.fillScreen(COLOR_BACKGROUND);
-    Serial.println("Screen filled with background color");
+    // Clear the display
+    display.clearDisplay();
 
-    // Draw title
-    tft.setTextColor(COLOR_TEXT);
-    tft.setTextSize(3);
-    tft.setCursor(40, 10);
-    tft.println("Garage Door");
-    Serial.println("Title drawn");
+    // Draw initial screen
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(20, 0);
+    display.println("Garage Door");
+    display.display();
 
-    Serial.println("Display initialized successfully (320x240 landscape)");
+    Serial.println("Display setup complete");
 }
 
 void readSensor() {
@@ -244,20 +245,23 @@ void readSensor() {
 }
 
 void updateDisplay() {
-    // Clear screen
-    tft.fillScreen(COLOR_BACKGROUND);
+    Serial.println("Full display update");
 
-    // Draw title
-    tft.setTextColor(COLOR_TEXT);
-    tft.setTextSize(3);
-    tft.setCursor(30, 10);
-    tft.println("Garage Door");
+    display.clearDisplay();
+
+    // Title at top (smaller font)
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(20, 0);
+    display.println("Garage Door");
+
+    // Draw horizontal line
+    display.drawLine(0, 10, SCREEN_WIDTH, 10, SSD1306_WHITE);
 
     // Draw status
     updateStatusDisplay();
 
-    // Draw button
-    drawButton("PRESS", COLOR_BUTTON, relayActive);
+    display.display();
 }
 
 void updateStatusDisplay() {
@@ -269,64 +273,34 @@ void updateStatusDisplay() {
         lastDisplayLog = millis();
     }
 
-    // Clear status area
-    tft.fillRect(0, 60, 320, 100, COLOR_BACKGROUND);
+    // Clear content area (below title line)
+    display.fillRect(0, 11, SCREEN_WIDTH, SCREEN_HEIGHT - 11, SSD1306_BLACK);
 
-    // Draw status label
-    tft.setTextSize(2);
-    tft.setTextColor(COLOR_TEXT);
-    tft.setCursor(20, 70);
-    tft.println("Status:");
+    // Status label (small)
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 14);
+    display.println("Status:");
 
-    // Draw status value with appropriate color
-    uint16_t statusColor = COLOR_UNKNOWN;
-    if (strcmp(doorStatus, "open") == 0) {
-        statusColor = COLOR_OPEN;
-    } else if (strcmp(doorStatus, "closed") == 0) {
-        statusColor = COLOR_CLOSED;
-    }
+    // Status value (larger)
+    display.setTextSize(2);
+    display.setCursor(0, 24);
+    display.println(doorStatus);
 
-    tft.setTextColor(statusColor);
-    tft.setTextSize(3);
-    tft.setCursor(20, 100);
-    tft.println(doorStatus);
+    // Distance (small)
+    display.setTextSize(1);
+    display.setCursor(0, 42);
+    display.printf("Dist: %d mm", distance);
 
-    // Draw distance
-    tft.setTextSize(2);
-    tft.setTextColor(COLOR_TEXT);
-    tft.setCursor(20, 140);
-    tft.printf("Distance: %d mm", distance);
-}
-
-void drawButton(const char* label, uint16_t color, bool pressed) {
-    Serial.printlnf("drawButton() - Label: %s, Pressed: %s", label, pressed ? "YES" : "NO");
-
-    int x = 90;
-    int y = 180;
-    int w = 140;
-    int h = 50;
-
-    // Draw button background
-    if (pressed) {
-        tft.fillRect(x, y, w, h, COLOR_OPEN);
+    // Relay status indicator
+    display.setCursor(0, 52);
+    if (relayActive) {
+        display.println("RELAY: ACTIVE");
     } else {
-        tft.fillRect(x, y, w, h, color);
+        display.println("Ready");
     }
 
-    // Draw button border
-    tft.drawRect(x, y, w, h, COLOR_TEXT);
-    tft.drawRect(x+1, y+1, w-2, h-2, COLOR_TEXT);
-
-    // Draw button label
-    tft.setTextColor(COLOR_TEXT);
-    tft.setTextSize(2);
-
-    // Center text
-    int textX = x + (w - (strlen(label) * 12)) / 2;
-    int textY = y + (h - 16) / 2;
-
-    tft.setCursor(textX, textY);
-    tft.println(label);
+    display.display();
 }
 
 void activateRelay() {
@@ -339,7 +313,7 @@ void activateRelay() {
         Particle.publish("relay/activated", "true", PRIVATE);
 
         // Update display
-        drawButton("ACTIVE", COLOR_OPEN, true);
+        updateStatusDisplay();
     }
 }
 
@@ -352,7 +326,7 @@ void deactivateRelay() {
         Particle.publish("relay/deactivated", "true", PRIVATE);
 
         // Update display
-        drawButton("PRESS", COLOR_BUTTON, false);
+        updateStatusDisplay();
     }
 }
 
