@@ -221,7 +221,6 @@ jobs:
     needs: deploy-lambda
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/')
-    continue-on-error: true  # Don't fail if skill deployment has issues
 
     steps:
       - name: Checkout code
@@ -243,17 +242,26 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy Alexa Skill
+        id: deploy
         env:
           ALEXA_LWA_TOKEN: ${{ secrets.ALEXA_LWA_TOKEN }}
         run: |
           if [ -z "$ALEXA_LWA_TOKEN" ]; then
             echo "⚠️ ALEXA_LWA_TOKEN not configured, skipping Alexa skill deployment"
             echo "To enable automated Alexa skill deployment, add ALEXA_LWA_TOKEN to GitHub secrets"
+            echo "status=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           chmod +x scripts/setup-alexa-skill.sh
-          ./scripts/setup-alexa-skill.sh
+          if ./scripts/setup-alexa-skill.sh; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "✅ Alexa skill deployment succeeded"
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "❌ Alexa skill deployment failed"
+            exit 1
+          fi
 
       - name: Alexa Skill deployment summary
         if: always()
@@ -267,15 +275,25 @@ jobs:
             echo "- **Status**: ⚠️ Skipped (ALEXA_LWA_TOKEN not configured)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "To enable automated deployment, add the ALEXA_LWA_TOKEN secret to your repository." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Status**: ✓ Deployment attempted" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.deploy.outputs.status }}" = "success" ]; then
+            echo "- **Status**: ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
             echo "- **Skill Name**: Garage Door Controller" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
             echo "1. Go to [Alexa Developer Console](https://developer.amazon.com/alexa/console/ask)" >> $GITHUB_STEP_SUMMARY
-            echo "2. Find 'Garage Door Controller' skill" >> $GITHUB_STEP_SUMMARY
+            echo "2. Find your skill: Garage Door Controller" >> $GITHUB_STEP_SUMMARY
             echo "3. Enable testing in Development" >> $GITHUB_STEP_SUMMARY
             echo "4. Test with: 'Alexa, ask garage door for status'" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.deploy.outputs.status }}" = "failed" ]; then
+            echo "- **Status**: ❌ Deployment failed" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skill Name**: Garage Door Controller" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
+            echo "Check the deployment logs above for error details." >> $GITHUB_STEP_SUMMARY
+            echo "Common issues:" >> $GITHUB_STEP_SUMMARY
+            echo "- Invalid or expired ALEXA_LWA_TOKEN" >> $GITHUB_STEP_SUMMARY
+            echo "- Missing vendor ID in ASK CLI configuration" >> $GITHUB_STEP_SUMMARY
+            echo "- Network connectivity issues" >> $GITHUB_STEP_SUMMARY
           fi
 
   deploy-firmware:

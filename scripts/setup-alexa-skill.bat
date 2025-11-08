@@ -69,10 +69,30 @@ REM Function to configure ASK CLI with LWA token
         REM Get current timestamp in ISO format (Windows PowerShell)
         for /f "tokens=*" %%i in ('powershell -Command "([DateTime]::UtcNow.AddHours(1)).ToString('yyyy-MM-ddTHH:mm:ss.000Z')"') do set "EXPIRES_AT=%%i"
 
-        REM Create cli_config with LWA refresh token using PowerShell for JSON formatting
+        REM Create temporary cli_config with LWA refresh token using PowerShell for JSON formatting
         powershell -Command "$config = @{profiles = @{default = @{aws_profile = 'default'; token = @{access_token = '%ALEXA_LWA_TOKEN%'; refresh_token = '%ALEXA_LWA_TOKEN%'; token_type = 'bearer'; expires_in = 3600; expires_at = '!EXPIRES_AT!'}; vendor_id = ''}}}; $config | ConvertTo-Json -Depth 5 | Set-Content '%USERPROFILE%\.ask\cli_config'"
 
-        call :print_success "ASK CLI configured with LWA token"
+        REM Get vendor ID from ASK API
+        call :print_status "Fetching vendor ID from Amazon..."
+        for /f "tokens=*" %%i in ('ask smapi list-vendors 2^>nul ^| findstr /r "\"id\":" ^| powershell -Command "$input | Select-Object -First 1 | ForEach-Object { ($_ -split '\"')[3] }"') do set "VENDOR_ID=%%i"
+
+        if "!VENDOR_ID!"=="" (
+            call :print_error "Failed to fetch vendor ID from Amazon"
+            echo This typically means:
+            echo   1. Invalid or expired ALEXA_LWA_TOKEN
+            echo   2. Token doesn't have proper permissions
+            echo   3. No vendor account associated with this token
+            echo.
+            echo Please verify your ALEXA_LWA_TOKEN is a valid LWA refresh token
+            exit /b 1
+        )
+
+        call :print_success "Vendor ID: !VENDOR_ID!"
+
+        REM Update cli_config with vendor ID
+        powershell -Command "$config = @{profiles = @{default = @{aws_profile = 'default'; token = @{access_token = '%ALEXA_LWA_TOKEN%'; refresh_token = '%ALEXA_LWA_TOKEN%'; token_type = 'bearer'; expires_in = 3600; expires_at = '!EXPIRES_AT!'}; vendor_id = '!VENDOR_ID!'}}}; $config | ConvertTo-Json -Depth 5 | Set-Content '%USERPROFILE%\.ask\cli_config'"
+
+        call :print_success "ASK CLI configured with LWA token and vendor ID"
         exit /b 0
     ) else (
         REM Check if manually configured
@@ -192,21 +212,26 @@ REM Function to create or update skill
         echo 2. Find your skill: Garage Door Controller
         echo 3. Enable testing in Development
         echo 4. Test with: 'Alexa, ask garage door to press the button'
+
+        cd ..
+        exit /b 0
     ) else (
         call :print_error "Skill deployment failed"
         echo.
         echo Error log:
         type "%TEMP%\ask-deploy.log"
         echo.
-        call :print_warning "Please check the error above or create skill manually using Alexa Developer Console"
+        call :print_warning "Please check the error above"
         echo.
-        echo Files ready for manual import:
-        echo   - skill.json (skill manifest)
-        echo   - interactionModel.json (interaction model)
-    )
+        echo Common issues:
+        echo   - Invalid or expired ALEXA_LWA_TOKEN
+        echo   - Missing or invalid vendor ID
+        echo   - Skill manifest validation errors
+        echo   - Network connectivity issues
 
-    cd ..
-    exit /b 0
+        cd ..
+        exit /b 1
+    )
 
 REM Function to add Lambda trigger permission
 :add_lambda_permission

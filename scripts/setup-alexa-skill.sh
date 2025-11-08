@@ -64,7 +64,7 @@ configure_ask_cli() {
         # Create ASK CLI config directory
         mkdir -p ~/.ask
 
-        # Create cli_config with LWA refresh token
+        # Create temporary cli_config with LWA refresh token (without vendor ID for now)
         cat > ~/.ask/cli_config << EOF
 {
   "profiles": {
@@ -83,7 +83,43 @@ configure_ask_cli() {
 }
 EOF
 
-        print_success "ASK CLI configured with LWA token"
+        # Get vendor ID from ASK API
+        print_status "Fetching vendor ID from Amazon..."
+        VENDOR_ID=$(ask smapi list-vendors 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+        if [ -z "$VENDOR_ID" ]; then
+            print_error "Failed to fetch vendor ID from Amazon"
+            echo "This typically means:"
+            echo "  1. Invalid or expired ALEXA_LWA_TOKEN"
+            echo "  2. Token doesn't have proper permissions"
+            echo "  3. No vendor account associated with this token"
+            echo ""
+            echo "Please verify your ALEXA_LWA_TOKEN is a valid LWA refresh token"
+            exit 1
+        fi
+
+        print_success "Vendor ID: $VENDOR_ID"
+
+        # Update cli_config with vendor ID
+        cat > ~/.ask/cli_config << EOF
+{
+  "profiles": {
+    "default": {
+      "aws_profile": "default",
+      "token": {
+        "access_token": "$ALEXA_LWA_TOKEN",
+        "refresh_token": "$ALEXA_LWA_TOKEN",
+        "token_type": "bearer",
+        "expires_in": 3600,
+        "expires_at": "$(date -u +"%Y-%m-%dT%H:%M:%S.000Z" -d "+1 hour" 2>/dev/null || date -u -v+1H +"%Y-%m-%dT%H:%M:%S.000Z" 2>/dev/null)"
+      },
+      "vendor_id": "$VENDOR_ID"
+    }
+  }
+}
+EOF
+
+        print_success "ASK CLI configured with LWA token and vendor ID"
     else
         # Check if manually configured
         if [ ! -f ~/.ask/cli_config ]; then
@@ -183,9 +219,14 @@ deploy_skill() {
     # Use ASK CLI v2 deploy command
     print_status "Deploying skill with ASK CLI..."
 
-    # Run ask deploy
-    if ask deploy 2>&1 | tee /tmp/ask-deploy.log; then
-        # Extract skill ID from output or .ask directory
+    # Run ask deploy and capture output
+    set +e  # Don't exit on error
+    ask deploy > /tmp/ask-deploy.log 2>&1
+    DEPLOY_RESULT=$?
+    set -e  # Re-enable exit on error
+
+    if [ $DEPLOY_RESULT -eq 0 ]; then
+        # Extract skill ID from .ask directory
         if [ -f .ask/ask-states.json ]; then
             SKILL_ID=$(grep -o '"skillId":"[^"]*"' .ask/ask-states.json | cut -d'"' -f4 | head -1)
         fi
@@ -201,20 +242,26 @@ deploy_skill() {
         echo "2. Find your skill: Garage Door Controller"
         echo "3. Enable testing in Development"
         echo "4. Test with: 'Alexa, ask garage door to press the button'"
+
+        cd ..
+        return 0
     else
         print_error "Skill deployment failed"
         echo ""
         echo "Error log:"
         cat /tmp/ask-deploy.log
         echo ""
-        print_warning "Please check the error above or create skill manually using Alexa Developer Console"
+        print_warning "Please check the error above"
         echo ""
-        echo "Files ready for manual import:"
-        echo "  - skill.json (skill manifest)"
-        echo "  - interactionModel.json (interaction model)"
-    fi
+        echo "Common issues:"
+        echo "  - Invalid or expired ALEXA_LWA_TOKEN"
+        echo "  - Missing or invalid vendor ID"
+        echo "  - Skill manifest validation errors"
+        echo "  - Network connectivity issues"
 
-    cd ..
+        cd ..
+        return 1
+    fi
 }
 
 # Function to add Lambda trigger permission
