@@ -20,8 +20,8 @@
             "particle",
             "home automation"
           ],
-          "smallIconUri": "https://via.placeholder.com/108",
-          "largeIconUri": "https://via.placeholder.com/512"
+          "smallIconUri": "https://raw.githubusercontent.com/JeremyProffitt/alexa-garage-door-opener/main/docs/images/icon-108.png",
+          "largeIconUri": "https://raw.githubusercontent.com/JeremyProffitt/alexa-garage-door-opener/main/docs/images/icon-512.png"
         }
       },
       "isAvailableWorldwide": false,
