@@ -134,79 +134,84 @@ update_skill_json() {
     print_success "skill.json updated"
 }
 
+# Function to setup skill package structure
+setup_skill_package() {
+    print_status "Setting up skill package structure..."
+
+    cd alexa-skill
+
+    # Create skill package directory structure
+    mkdir -p skill-package/interactionModels/custom
+
+    # Copy skill manifest
+    cp skill.json skill-package/skill.json
+
+    # Copy interaction model to proper location
+    cp interactionModel.json skill-package/interactionModels/custom/en-US.json
+
+    # Create ask-resources.json for ASK CLI v2
+    cat > ask-resources.json << EOF
+{
+  "askcliResourcesVersion": "2020-03-31",
+  "profiles": {
+    "default": {
+      "skillMetadata": {
+        "src": "./skill-package"
+      }
+    }
+  }
+}
+EOF
+
+    print_success "Skill package structure created"
+    cd ..
+}
+
 # Function to create or update skill
 deploy_skill() {
     print_status "Deploying Alexa skill..."
 
     cd alexa-skill
 
-    # Check if skill already exists
-    if [ -f .ask/ask-states.json ]; then
-        print_status "Existing skill found, updating..."
+    # Setup skill package structure
+    if [ ! -f ask-resources.json ]; then
+        cd ..
+        setup_skill_package
+        cd alexa-skill
+    fi
 
-        # Update skill
-        ask deploy --target skill-metadata
-        ask deploy --target model
+    # Use ASK CLI v2 deploy command
+    print_status "Deploying skill with ASK CLI..."
 
-        print_success "Skill updated successfully"
-    else
-        print_status "Creating new skill..."
-
-        # Create new skill (note: ask deploy is deprecated in favor of ask smapi)
-        # We'll use a simpler approach with manual commands
-
-        print_warning "Creating skill interactively..."
-        echo ""
-        echo "Since ASK CLI v2 has changed, you may need to:"
-        echo "1. Use: ask smapi create-skill-for-vendor --manifest file:skill.json"
-        echo "2. Or use the Alexa Developer Console to import skill.json"
-        echo ""
-
-        # Try using smapi
-        if ask smapi create-skill-for-vendor --help &> /dev/null; then
-            print_status "Using ASK SMAPI to create skill..."
-
-            SKILL_ID=$(ask smapi create-skill-for-vendor \
-                --manifest "file://skill.json" \
-                --query 'skillId' \
-                --output text 2>&1 | tail -1)
-
-            if [ -n "$SKILL_ID" ]; then
-                print_success "Skill created with ID: $SKILL_ID"
-
-                # Update interaction model
-                print_status "Updating interaction model..."
-                ask smapi set-interaction-model \
-                    --skill-id "$SKILL_ID" \
-                    --locale en-US \
-                    --interaction-model "file://interactionModel.json" \
-                    --stage development
-
-                # Build model
-                print_status "Building interaction model..."
-                ask smapi get-skill-status --skill-id "$SKILL_ID"
-
-                print_success "Skill deployment complete!"
-                echo ""
-                echo "Skill ID: $SKILL_ID"
-                echo ""
-                echo "Next steps:"
-                echo "1. Go to https://developer.amazon.com/alexa/console/ask"
-                echo "2. Find your skill: Garage Door Controller"
-                echo "3. Enable testing in Development"
-                echo "4. Test with: 'Alexa, ask garage door to press the button'"
-            else
-                print_error "Failed to create skill"
-                print_warning "Please create skill manually using Alexa Developer Console"
-            fi
-        else
-            print_warning "ASK SMAPI not available"
-            print_warning "Please use Alexa Developer Console to create skill manually"
-            echo ""
-            echo "Files ready for manual import:"
-            echo "  - skill.json (skill manifest)"
-            echo "  - interactionModel.json (interaction model)"
+    # Run ask deploy
+    if ask deploy 2>&1 | tee /tmp/ask-deploy.log; then
+        # Extract skill ID from output or .ask directory
+        if [ -f .ask/ask-states.json ]; then
+            SKILL_ID=$(grep -o '"skillId":"[^"]*"' .ask/ask-states.json | cut -d'"' -f4 | head -1)
         fi
+
+        print_success "Skill deployment complete!"
+        echo ""
+        if [ -n "$SKILL_ID" ]; then
+            echo "Skill ID: $SKILL_ID"
+            echo ""
+        fi
+        echo "Next steps:"
+        echo "1. Go to https://developer.amazon.com/alexa/console/ask"
+        echo "2. Find your skill: Garage Door Controller"
+        echo "3. Enable testing in Development"
+        echo "4. Test with: 'Alexa, ask garage door to press the button'"
+    else
+        print_error "Skill deployment failed"
+        echo ""
+        echo "Error log:"
+        cat /tmp/ask-deploy.log
+        echo ""
+        print_warning "Please check the error above or create skill manually using Alexa Developer Console"
+        echo ""
+        echo "Files ready for manual import:"
+        echo "  - skill.json (skill manifest)"
+        echo "  - interactionModel.json (interaction model)"
     fi
 
     cd ..

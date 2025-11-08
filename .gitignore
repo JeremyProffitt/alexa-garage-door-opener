@@ -16,6 +16,12 @@ lambda/.aws-sam/
 lambda/packaged.yaml
 lambda/samconfig.toml.bak
 
+# Alexa Skill build artifacts
+alexa-skill/.ask/
+alexa-skill/ask-resources.json
+alexa-skill/skill-package/
+alexa-skill/*.json.bak
+
 # Go module cache (go.sum should be committed for reproducible builds)
 
 # Environment files
