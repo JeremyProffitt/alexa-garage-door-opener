@@ -48,7 +48,8 @@ SYSTEM_THREAD(ENABLED);
 #define COLOR_BUTTON ILI9341_BLUE
 
 // Global objects
-Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+// Using 3-parameter constructor: CS, DC, Reset (0 = no reset pin)
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, 0);
 VL53L4CD sensor(&Wire, VL53L4CD_XSHUT);
 
 // Global state variables
@@ -166,6 +167,10 @@ void setupDisplay() {
     // Initialize SPI explicitly
     SPI.begin();
     Serial.println("SPI initialized");
+
+    // Set SPI clock speed to 50 MHz for fast display updates
+    SPI.setClockSpeed(50, MHZ);
+    Serial.println("SPI clock speed set to 50 MHz");
 
     // Initialize the display
     tft.begin();
