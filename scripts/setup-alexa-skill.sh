@@ -8,15 +8,28 @@
 #
 # Prerequisites:
 # - ASK CLI installed (npm install -g ask-cli)
-# - ASK CLI configured (ask configure) OR ALEXA_LWA_TOKEN env variable set
 # - AWS SAM deployed (Lambda ARN available)
+# - Alexa credentials configured (see Environment Variables below)
 #
-# Environment Variables:
-#   ALEXA_LWA_TOKEN - LWA (Login with Amazon) refresh token for ASK CLI auth
+# Environment Variables (Authentication - choose one):
+#   Option 1 (Recommended):
+#     ALEXA_CLIENT_ID    - LWA client ID from security profile
+#     ALEXA_SECRET_KEY   - LWA client secret from security profile
+#     ALEXA_VENDOR_ID    - (Optional) Vendor ID, auto-fetched if not provided
+#
+#   Option 2:
+#     ALEXA_LWA_TOKEN    - LWA refresh token from 'ask configure'
+#     ALEXA_VENDOR_ID    - (Optional) Vendor ID
 #
 # Usage:
 #   ./scripts/setup-alexa-skill.sh [LAMBDA_ARN]
-#   ALEXA_LWA_TOKEN=your_token ./scripts/setup-alexa-skill.sh [LAMBDA_ARN]
+#
+# Examples:
+#   # Using client credentials
+#   ALEXA_CLIENT_ID=xxx ALEXA_SECRET_KEY=yyy ./scripts/setup-alexa-skill.sh
+#
+#   # Using refresh token
+#   ALEXA_LWA_TOKEN=xxx ./scripts/setup-alexa-skill.sh
 #############################################################################
 
 set -e
@@ -56,13 +69,90 @@ check_ask_cli() {
     print_success "ASK CLI is installed"
 }
 
-# Function to configure ASK CLI with LWA token
+# Function to configure ASK CLI
 configure_ask_cli() {
-    if [ -n "$ALEXA_LWA_TOKEN" ]; then
-        print_status "Configuring ASK CLI with LWA token..."
+    # Create ASK CLI config directory
+    mkdir -p ~/.ask
 
-        # Create ASK CLI config directory
-        mkdir -p ~/.ask
+    # Priority: Client credentials > LWA token > existing config
+    if [ -n "$ALEXA_CLIENT_ID" ] && [ -n "$ALEXA_SECRET_KEY" ]; then
+        print_status "Configuring ASK CLI with client credentials..."
+
+        # Get access token using client credentials
+        print_status "Requesting access token from Amazon..."
+
+        TOKEN_RESPONSE=$(curl -s -X POST https://api.amazon.com/auth/o2/token \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=client_credentials" \
+            -d "client_id=$ALEXA_CLIENT_ID" \
+            -d "client_secret=$ALEXA_SECRET_KEY" \
+            -d "scope=alexa::ask:skills:readwrite alexa::ask:models:readwrite alexa::ask:skills:test")
+
+        ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token // empty')
+
+        if [ -z "$ACCESS_TOKEN" ]; then
+            print_error "Failed to get access token"
+            echo ""
+            echo "Response from Amazon: $TOKEN_RESPONSE"
+            echo ""
+            echo "Please verify your ALEXA_CLIENT_ID and ALEXA_SECRET_KEY are correct."
+            exit 1
+        fi
+
+        print_success "Access token obtained"
+
+        # Get vendor ID
+        VENDOR_ID=""
+        if [ -n "$ALEXA_VENDOR_ID" ]; then
+            VENDOR_ID="$ALEXA_VENDOR_ID"
+            print_success "Using vendor ID from ALEXA_VENDOR_ID environment variable: $VENDOR_ID"
+        else
+            print_status "Fetching vendor ID from Amazon..."
+            set +e
+            VENDOR_ID_RESPONSE=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+                https://api.amazonalexa.com/v1/vendors)
+            set -e
+
+            VENDOR_ID=$(echo "$VENDOR_ID_RESPONSE" | jq -r '.vendors[0].id // empty')
+
+            if [ -n "$VENDOR_ID" ]; then
+                print_success "Vendor ID retrieved: $VENDOR_ID"
+            else
+                print_error "Could not fetch vendor ID"
+                echo ""
+                echo "Please set ALEXA_VENDOR_ID as a GitHub secret"
+                echo "To get your vendor ID, run: ask smapi list-vendors"
+                exit 1
+            fi
+        fi
+
+        # Create ASK CLI config with access token
+        EXPIRES_AT=$(date -u -d "+3600 seconds" +"%Y-%m-%dT%H:%M:%S.000Z" 2>/dev/null || date -u -v+3600S +"%Y-%m-%dT%H:%M:%S.000Z" 2>/dev/null || echo "1970-01-01T00:00:00.000Z")
+
+        jq -n \
+          --arg access_token "$ACCESS_TOKEN" \
+          --arg vendor_id "$VENDOR_ID" \
+          --arg expires_at "$EXPIRES_AT" \
+          '{
+            profiles: {
+              default: {
+                aws_profile: "default",
+                token: {
+                  access_token: $access_token,
+                  refresh_token: "",
+                  token_type: "bearer",
+                  expires_in: 3600,
+                  expires_at: $expires_at
+                },
+                vendor_id: $vendor_id
+              }
+            }
+          }' > ~/.ask/cli_config
+
+        print_success "ASK CLI configured with client credentials"
+
+    elif [ -n "$ALEXA_LWA_TOKEN" ]; then
+        print_status "Configuring ASK CLI with LWA token..."
 
         # Check if ALEXA_LWA_TOKEN is JSON or plain string
         REFRESH_TOKEN=""
@@ -175,7 +265,10 @@ configure_ask_cli() {
         # Check if manually configured
         if [ ! -f ~/.ask/cli_config ]; then
             print_error "ASK CLI is not configured"
-            echo "Either set ALEXA_LWA_TOKEN environment variable or run: ask configure"
+            echo "Set one of the following:"
+            echo "  - ALEXA_CLIENT_ID and ALEXA_SECRET_KEY (recommended)"
+            echo "  - ALEXA_LWA_TOKEN"
+            echo "  - Or run: ask configure"
             exit 1
         fi
 

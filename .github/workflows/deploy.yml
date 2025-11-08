@@ -244,12 +244,16 @@ jobs:
       - name: Deploy Alexa Skill
         id: deploy
         env:
-          ALEXA_LWA_TOKEN: ${{ secrets.ALEXA_LWA_TOKEN }}
+          ALEXA_CLIENT_ID: ${{ secrets.ALEXA_CLIENT_ID }}
+          ALEXA_SECRET_KEY: ${{ secrets.ALEXA_SECRET_KEY }}
           ALEXA_VENDOR_ID: ${{ secrets.ALEXA_VENDOR_ID }}
+          ALEXA_LWA_TOKEN: ${{ secrets.ALEXA_LWA_TOKEN }}
         run: |
-          if [ -z "$ALEXA_LWA_TOKEN" ]; then
-            echo "⚠️ ALEXA_LWA_TOKEN not configured, skipping Alexa skill deployment"
-            echo "To enable automated Alexa skill deployment, add ALEXA_LWA_TOKEN to GitHub secrets"
+          if [ -z "$ALEXA_CLIENT_ID" ] && [ -z "$ALEXA_LWA_TOKEN" ]; then
+            echo "⚠️ Alexa credentials not configured, skipping Alexa skill deployment"
+            echo "To enable automated Alexa skill deployment, add either:"
+            echo "  - ALEXA_CLIENT_ID and ALEXA_SECRET_KEY (recommended), OR"
+            echo "  - ALEXA_LWA_TOKEN"
             echo "status=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -267,15 +271,18 @@ jobs:
       - name: Alexa Skill deployment summary
         if: always()
         env:
+          ALEXA_CLIENT_ID: ${{ secrets.ALEXA_CLIENT_ID }}
           ALEXA_LWA_TOKEN: ${{ secrets.ALEXA_LWA_TOKEN }}
         run: |
           echo "## Alexa Skill Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ -z "$ALEXA_LWA_TOKEN" ]; then
-            echo "- **Status**: ⚠️ Skipped (ALEXA_LWA_TOKEN not configured)" >> $GITHUB_STEP_SUMMARY
+          if [ -z "$ALEXA_CLIENT_ID" ] && [ -z "$ALEXA_LWA_TOKEN" ]; then
+            echo "- **Status**: ⚠️ Skipped (credentials not configured)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "To enable automated deployment, add the ALEXA_LWA_TOKEN secret to your repository." >> $GITHUB_STEP_SUMMARY
+            echo "To enable automated deployment, add Alexa credentials to your repository secrets:" >> $GITHUB_STEP_SUMMARY
+            echo "- **Option 1 (Recommended)**: Add ALEXA_CLIENT_ID and ALEXA_SECRET_KEY" >> $GITHUB_STEP_SUMMARY
+            echo "- **Option 2**: Add ALEXA_LWA_TOKEN (refresh token)" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.deploy.outputs.status }}" = "success" ]; then
             echo "- **Status**: ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
             echo "- **Skill Name**: Garage Door Controller" >> $GITHUB_STEP_SUMMARY
@@ -292,12 +299,16 @@ jobs:
             echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
             echo "Check the deployment logs above for error details." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "#### How to get a valid ALEXA_LWA_TOKEN:" >> $GITHUB_STEP_SUMMARY
+            echo "#### Authentication Options:" >> $GITHUB_STEP_SUMMARY
+            echo "**Option 1: Client Credentials (Recommended)**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Create a security profile at [Amazon Developer Console](https://developer.amazon.com/settings/console/securityprofile/overview.html)" >> $GITHUB_STEP_SUMMARY
+            echo "2. Add ALEXA_CLIENT_ID and ALEXA_SECRET_KEY as GitHub secrets" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Option 2: LWA Refresh Token**" >> $GITHUB_STEP_SUMMARY
             echo "1. Install ASK CLI: \`npm install -g ask-cli\`" >> $GITHUB_STEP_SUMMARY
             echo "2. Run: \`ask configure\`" >> $GITHUB_STEP_SUMMARY
-            echo "3. Follow the login prompts in your browser" >> $GITHUB_STEP_SUMMARY
-            echo "4. Copy the refresh token from \`~/.ask/cli_config\`" >> $GITHUB_STEP_SUMMARY
-            echo "5. Update the ALEXA_LWA_TOKEN secret in GitHub repository settings" >> $GITHUB_STEP_SUMMARY
+            echo "3. Copy the refresh_token from \`~/.ask/cli_config\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. Add ALEXA_LWA_TOKEN as a GitHub secret" >> $GITHUB_STEP_SUMMARY
           fi
 
   deploy-firmware:
