@@ -119,6 +119,7 @@ Required secrets:
 - `AWS_SECRET_KEY`: AWS secret access key
 - `PARTICLE_ACCESS_TOKEN`: Particle API access token (optional - firmware deployment will be skipped if not provided)
 - `PARTICLE_DEVICE_ID`: Particle device ID for "garage-door-opener" (optional)
+- `ALEXA_LWA_TOKEN`: LWA (Login with Amazon) refresh token for automated Alexa skill deployment (optional)
 
 Required variables:
 - `ALEXA_SKILL_NAME`: Name of your Alexa skill (e.g., "Garage Door Controller")
@@ -138,7 +139,8 @@ git push origin main
 The workflow will:
 1. Build and test the Go Lambda functions (Alexa Skill & Monitor)
 2. Deploy AWS resources via SAM (Lambda, DynamoDB, SNS, EventBridge)
-3. Compile and flash firmware to Particle P2 (if device is online and credentials are configured)
+3. Deploy Alexa skill (if ALEXA_LWA_TOKEN secret is configured)
+4. Compile and flash firmware to Particle P2 (if device is online and credentials are configured)
 
 ### 4. Configure Alexa Skill
 

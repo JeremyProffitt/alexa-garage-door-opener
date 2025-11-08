@@ -216,6 +216,68 @@ jobs:
           echo "2. Run \`./scripts/setup-alexa-skill.sh\` for automated Alexa skill setup" >> $GITHUB_STEP_SUMMARY
           echo "3. If NotificationEmail was set, confirm SNS subscription in your email" >> $GITHUB_STEP_SUMMARY
 
+  deploy-alexa-skill:
+    name: Deploy Alexa Skill
+    needs: deploy-lambda
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/')
+    continue-on-error: true  # Don't fail if skill deployment has issues
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install ASK CLI
+        run: npm install -g ask-cli
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CLIENT_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Alexa Skill
+        env:
+          ALEXA_LWA_TOKEN: ${{ secrets.ALEXA_LWA_TOKEN }}
+        run: |
+          if [ -z "$ALEXA_LWA_TOKEN" ]; then
+            echo "⚠️ ALEXA_LWA_TOKEN not configured, skipping Alexa skill deployment"
+            echo "To enable automated Alexa skill deployment, add ALEXA_LWA_TOKEN to GitHub secrets"
+            exit 0
+          fi
+
+          chmod +x scripts/setup-alexa-skill.sh
+          ./scripts/setup-alexa-skill.sh
+
+      - name: Alexa Skill deployment summary
+        if: always()
+        env:
+          ALEXA_LWA_TOKEN: ${{ secrets.ALEXA_LWA_TOKEN }}
+        run: |
+          echo "## Alexa Skill Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -z "$ALEXA_LWA_TOKEN" ]; then
+            echo "- **Status**: ⚠️ Skipped (ALEXA_LWA_TOKEN not configured)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To enable automated deployment, add the ALEXA_LWA_TOKEN secret to your repository." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ✓ Deployment attempted" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skill Name**: Garage Door Controller" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to [Alexa Developer Console](https://developer.amazon.com/alexa/console/ask)" >> $GITHUB_STEP_SUMMARY
+            echo "2. Find 'Garage Door Controller' skill" >> $GITHUB_STEP_SUMMARY
+            echo "3. Enable testing in Development" >> $GITHUB_STEP_SUMMARY
+            echo "4. Test with: 'Alexa, ask garage door for status'" >> $GITHUB_STEP_SUMMARY
+          fi
+
   deploy-firmware:
     name: Deploy Particle Firmware
     needs: build-and-test

@@ -8,11 +8,15 @@
 #
 # Prerequisites:
 # - ASK CLI installed (npm install -g ask-cli)
-# - ASK CLI configured (ask configure)
+# - ASK CLI configured (ask configure) OR ALEXA_LWA_TOKEN env variable set
 # - AWS SAM deployed (Lambda ARN available)
+#
+# Environment Variables:
+#   ALEXA_LWA_TOKEN - LWA (Login with Amazon) refresh token for ASK CLI auth
 #
 # Usage:
 #   ./scripts/setup-alexa-skill.sh [LAMBDA_ARN]
+#   ALEXA_LWA_TOKEN=your_token ./scripts/setup-alexa-skill.sh [LAMBDA_ARN]
 #############################################################################
 
 set -e
@@ -46,18 +50,50 @@ check_ask_cli() {
     if ! command -v ask &> /dev/null; then
         print_error "ASK CLI is not installed"
         echo "Install it with: npm install -g ask-cli"
-        echo "Then configure: ask configure"
         exit 1
     fi
 
-    # Check if configured
-    if [ ! -f ~/.ask/cli_config ]; then
-        print_error "ASK CLI is not configured"
-        echo "Run: ask configure"
-        exit 1
-    fi
+    print_success "ASK CLI is installed"
+}
 
-    print_success "ASK CLI is installed and configured"
+# Function to configure ASK CLI with LWA token
+configure_ask_cli() {
+    if [ -n "$ALEXA_LWA_TOKEN" ]; then
+        print_status "Configuring ASK CLI with LWA token..."
+
+        # Create ASK CLI config directory
+        mkdir -p ~/.ask
+
+        # Create cli_config with LWA refresh token
+        cat > ~/.ask/cli_config << EOF
+{
+  "profiles": {
+    "default": {
+      "aws_profile": "default",
+      "token": {
+        "access_token": "$ALEXA_LWA_TOKEN",
+        "refresh_token": "$ALEXA_LWA_TOKEN",
+        "token_type": "bearer",
+        "expires_in": 3600,
+        "expires_at": "$(date -u +"%Y-%m-%dT%H:%M:%S.000Z" -d "+1 hour" 2>/dev/null || date -u -v+1H +"%Y-%m-%dT%H:%M:%S.000Z" 2>/dev/null)"
+      },
+      "vendor_id": ""
+    }
+  }
+}
+EOF
+
+        print_success "ASK CLI configured with LWA token"
+    else
+        # Check if manually configured
+        if [ ! -f ~/.ask/cli_config ]; then
+            print_error "ASK CLI is not configured"
+            echo "Either set ALEXA_LWA_TOKEN environment variable or run: ask configure"
+            exit 1
+        fi
+
+        print_success "Using existing ASK CLI configuration"
+    fi
 }
 
 # Function to get Lambda ARN
@@ -218,6 +254,9 @@ main() {
 
     # Check prerequisites
     check_ask_cli
+
+    # Configure ASK CLI with LWA token or check existing config
+    configure_ask_cli
 
     # Get Lambda ARN
     get_lambda_arn "$1"
