@@ -48,8 +48,8 @@ SYSTEM_THREAD(ENABLED);
 #define COLOR_BUTTON ILI9341_BLUE
 
 // Global objects
-// Using 3-parameter constructor: CS, DC, Reset (0 = no reset pin)
-Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, 0);
+// Using 2-parameter constructor like parking-garage-floor-tracker
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 VL53L4CD sensor(&Wire, VL53L4CD_XSHUT);
 
 // Global state variables
@@ -161,24 +161,18 @@ void setupSensor() {
 }
 
 void setupDisplay() {
-    Serial.println("Initializing TFT display...");
+    Serial.println("Initializing 2.4\" TFT FeatherWing display...");
     Serial.printlnf("TFT_CS pin: %d, TFT_DC pin: %d", TFT_CS, TFT_DC);
 
-    // Initialize SPI explicitly
-    SPI.begin();
-    Serial.println("SPI initialized");
-
-    // Set SPI clock speed to 50 MHz for fast display updates
-    SPI.setClockSpeed(50, MHZ);
-    Serial.println("SPI clock speed set to 50 MHz");
-
-    // Initialize the display
+    // Initialize TFT (RK library handles SPI initialization automatically)
     tft.begin();
-    Serial.println("tft.begin() called");
+    Serial.println("tft.begin() called - RK library initialized SPI");
 
-    tft.setRotation(1); // Landscape mode
+    // Set orientation: 1 = landscape mode (320x240)
+    tft.setRotation(1);
     Serial.println("Rotation set to 1 (landscape)");
 
+    // Clear screen
     tft.fillScreen(COLOR_BACKGROUND);
     Serial.println("Screen filled with background color");
 
@@ -189,7 +183,7 @@ void setupDisplay() {
     tft.println("Garage Door");
     Serial.println("Title drawn");
 
-    Serial.println("TFT display initialized successfully");
+    Serial.println("Display initialized successfully (320x240 landscape)");
 }
 
 void readSensor() {
