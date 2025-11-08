@@ -134,18 +134,27 @@ configure_ask_cli() {
 
             print_status "Attempting to fetch vendor ID from Amazon..."
             # Use smapi command which will refresh the token automatically
+            # Temporarily disable exit on error for this command
+            set +e
             VENDOR_ID_RESPONSE=$(ask smapi list-vendors 2>&1)
-            VENDOR_ID=$(echo "$VENDOR_ID_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+            SMAPI_EXIT_CODE=$?
+            set -e
 
-            if [ -n "$VENDOR_ID" ]; then
-                print_success "Vendor ID retrieved: $VENDOR_ID"
-                # Update config with vendor ID
-                jq --arg vendor_id "$VENDOR_ID" '.profiles.default.vendor_id = $vendor_id' ~/.ask/cli_config > ~/.ask/cli_config.tmp
-                mv ~/.ask/cli_config.tmp ~/.ask/cli_config
-                print_success "ASK CLI configured with LWA refresh token and vendor ID"
+            if [ $SMAPI_EXIT_CODE -eq 0 ]; then
+                VENDOR_ID=$(echo "$VENDOR_ID_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+                if [ -n "$VENDOR_ID" ]; then
+                    print_success "Vendor ID retrieved: $VENDOR_ID"
+                    # Update config with vendor ID
+                    jq --arg vendor_id "$VENDOR_ID" '.profiles.default.vendor_id = $vendor_id' ~/.ask/cli_config > ~/.ask/cli_config.tmp && mv ~/.ask/cli_config.tmp ~/.ask/cli_config
+                    print_success "ASK CLI configured with LWA refresh token and vendor ID"
+                else
+                    print_warning "Could not parse vendor ID from response"
+                    print_status "ASK CLI will attempt to fetch it during deployment"
+                fi
             else
-                print_warning "Could not fetch vendor ID automatically"
-                print_status "ASK CLI will attempt to fetch it during deployment"
+                print_warning "Could not fetch vendor ID (command failed)"
+                print_status "This is normal - ASK CLI will fetch it during first deployment"
             fi
         fi
     else

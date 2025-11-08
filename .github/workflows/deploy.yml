@@ -332,7 +332,7 @@ jobs:
           particle login --token "$PARTICLE_ACCESS_TOKEN"
 
           echo "✓ Compiling firmware for Particle P2..."
-          particle compile p2 src/ --saveTo firmware.bin
+          particle compile p2 . --saveTo firmware.bin
 
       - name: Flash firmware to device
         env:
