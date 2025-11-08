@@ -81,8 +81,7 @@ configure_ask_cli() {
             REFRESH_TOKEN="$ALEXA_LWA_TOKEN"
         fi
 
-        # Use jq to properly generate JSON with escaped values
-        # The vendor_id will be automatically fetched by ask deploy command
+        # Create initial config with refresh token
         jq -n \
           --arg refresh_token "$REFRESH_TOKEN" \
           '{
@@ -100,8 +99,38 @@ configure_ask_cli() {
             }
           }' > ~/.ask/cli_config
 
-        print_success "ASK CLI configured with LWA refresh token"
-        print_status "Vendor ID will be automatically fetched during deployment"
+        # Try to fetch vendor ID
+        print_status "Fetching vendor ID from Amazon..."
+        VENDOR_ID=$(ask smapi list-vendors 2>&1 | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+        if [ -n "$VENDOR_ID" ]; then
+            print_success "Vendor ID retrieved: $VENDOR_ID"
+
+            # Update config with vendor ID
+            jq -n \
+              --arg refresh_token "$REFRESH_TOKEN" \
+              --arg vendor_id "$VENDOR_ID" \
+              '{
+                profiles: {
+                  default: {
+                    aws_profile: "default",
+                    token: {
+                      access_token: "",
+                      refresh_token: $refresh_token,
+                      token_type: "bearer",
+                      expires_in: 3600,
+                      expires_at: "1970-01-01T00:00:00.000Z"
+                    },
+                    vendor_id: $vendor_id
+                  }
+                }
+              }' > ~/.ask/cli_config
+
+            print_success "ASK CLI configured with LWA refresh token and vendor ID"
+        else
+            print_warning "Could not fetch vendor ID automatically"
+            print_status "Will proceed with deployment (vendor ID may be fetched automatically)"
+        fi
     else
         # Check if manually configured
         if [ ! -f ~/.ask/cli_config ]; then
