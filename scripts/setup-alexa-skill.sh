@@ -64,25 +64,24 @@ configure_ask_cli() {
         # Create ASK CLI config directory
         mkdir -p ~/.ask
 
-        # The ASK CLI v2 can use environment variables for authentication
-        # Set up the config to use the refresh token
+        # Use jq to properly generate JSON with escaped values
         # The vendor_id will be automatically fetched by ask deploy command
-        cat > ~/.ask/cli_config << EOF
-{
-  "profiles": {
-    "default": {
-      "aws_profile": "default",
-      "token": {
-        "access_token": "",
-        "refresh_token": "$ALEXA_LWA_TOKEN",
-        "token_type": "bearer",
-        "expires_in": 3600,
-        "expires_at": "1970-01-01T00:00:00.000Z"
-      }
-    }
-  }
-}
-EOF
+        jq -n \
+          --arg refresh_token "$ALEXA_LWA_TOKEN" \
+          '{
+            profiles: {
+              default: {
+                aws_profile: "default",
+                token: {
+                  access_token: "",
+                  refresh_token: $refresh_token,
+                  token_type: "bearer",
+                  expires_in: 3600,
+                  expires_at: "1970-01-01T00:00:00.000Z"
+                }
+              }
+            }
+          }' > ~/.ask/cli_config
 
         print_success "ASK CLI configured with LWA refresh token"
         print_status "Vendor ID will be automatically fetched during deployment"
