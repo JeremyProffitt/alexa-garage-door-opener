@@ -64,10 +64,27 @@ configure_ask_cli() {
         # Create ASK CLI config directory
         mkdir -p ~/.ask
 
+        # Check if ALEXA_LWA_TOKEN is JSON or plain string
+        REFRESH_TOKEN=""
+        if echo "$ALEXA_LWA_TOKEN" | jq -e . >/dev/null 2>&1; then
+            # Token is JSON, extract refresh_token
+            print_status "Detected JSON format token, extracting refresh_token..."
+            REFRESH_TOKEN=$(echo "$ALEXA_LWA_TOKEN" | jq -r '.refresh_token')
+
+            if [ -z "$REFRESH_TOKEN" ] || [ "$REFRESH_TOKEN" = "null" ]; then
+                print_error "Failed to extract refresh_token from JSON"
+                echo "The ALEXA_LWA_TOKEN appears to be JSON but missing refresh_token field"
+                exit 1
+            fi
+        else
+            # Token is plain string
+            REFRESH_TOKEN="$ALEXA_LWA_TOKEN"
+        fi
+
         # Use jq to properly generate JSON with escaped values
         # The vendor_id will be automatically fetched by ask deploy command
         jq -n \
-          --arg refresh_token "$ALEXA_LWA_TOKEN" \
+          --arg refresh_token "$REFRESH_TOKEN" \
           '{
             profiles: {
               default: {
