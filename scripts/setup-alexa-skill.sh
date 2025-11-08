@@ -85,9 +85,12 @@ configure_ask_cli() {
             REFRESH_TOKEN="$ALEXA_LWA_TOKEN"
         fi
 
-        # Determine vendor ID to use
+        # Determine vendor ID to use (priority: env var > JSON > auto-fetch)
         VENDOR_ID=""
-        if [ -n "$VENDOR_ID_FROM_JSON" ]; then
+        if [ -n "$ALEXA_VENDOR_ID" ]; then
+            VENDOR_ID="$ALEXA_VENDOR_ID"
+            print_success "Using vendor ID from ALEXA_VENDOR_ID environment variable: $VENDOR_ID"
+        elif [ -n "$VENDOR_ID_FROM_JSON" ]; then
             VENDOR_ID="$VENDOR_ID_FROM_JSON"
             print_success "Using vendor ID from JSON token: $VENDOR_ID"
         fi
@@ -153,8 +156,19 @@ configure_ask_cli() {
                     print_status "ASK CLI will attempt to fetch it during deployment"
                 fi
             else
-                print_warning "Could not fetch vendor ID (command failed)"
-                print_status "This is normal - ASK CLI will fetch it during first deployment"
+                print_error "Could not fetch vendor ID automatically"
+                echo ""
+                echo "The vendor_id is required for Alexa skill deployment."
+                echo "To get your vendor ID, run this command locally:"
+                echo "  ask smapi list-vendors"
+                echo ""
+                echo "Then set it as a GitHub secret:"
+                echo "  ALEXA_VENDOR_ID=<your-vendor-id>"
+                echo ""
+                echo "Or add it to your ALEXA_LWA_TOKEN JSON:"
+                echo '  {"refresh_token": "...", "vendor_id": "..."}'
+                echo ""
+                exit 1
             fi
         fi
     else

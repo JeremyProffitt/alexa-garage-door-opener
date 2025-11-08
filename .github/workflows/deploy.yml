@@ -245,6 +245,7 @@ jobs:
         id: deploy
         env:
           ALEXA_LWA_TOKEN: ${{ secrets.ALEXA_LWA_TOKEN }}
+          ALEXA_VENDOR_ID: ${{ secrets.ALEXA_VENDOR_ID }}
         run: |
           if [ -z "$ALEXA_LWA_TOKEN" ]; then
             echo "⚠️ ALEXA_LWA_TOKEN not configured, skipping Alexa skill deployment"
