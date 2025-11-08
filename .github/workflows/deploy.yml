@@ -297,25 +297,17 @@ jobs:
       - name: Install Particle CLI
         run: npm install -g particle-cli
 
-      - name: Login to Particle
-        env:
-          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
-        run: |
-          if [ -z "$PARTICLE_TOKEN" ]; then
-            echo "Particle access token not configured, skipping firmware deployment"
-            exit 0
-          fi
-          echo "$PARTICLE_TOKEN" | particle login --token
-
       - name: Compile firmware
         env:
           PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         working-directory: firmware
         run: |
           if [ -z "$PARTICLE_TOKEN" ]; then
-            echo "Skipping firmware compilation (Particle token not configured)"
+            echo "⚠️ PARTICLE_ACCESS_TOKEN not configured, skipping firmware compilation"
             exit 0
           fi
+
+          echo "✓ Compiling firmware for Particle P2..."
           particle compile p2 src/ --saveTo firmware.bin
 
       - name: Flash firmware to device
@@ -324,18 +316,19 @@ jobs:
         continue-on-error: true
         run: |
           if [ -z "$PARTICLE_TOKEN" ]; then
-            echo "Skipping firmware flash (Particle token not configured)" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ PARTICLE_ACCESS_TOKEN not configured, skipping firmware flash" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
+          echo "Flashing firmware to garage-door-opener device..."
           set +e
           particle flash garage-door-opener firmware/firmware.bin
           FLASH_RESULT=$?
 
           if [ $FLASH_RESULT -eq 0 ]; then
-            echo " Firmware flashed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "✓ Firmware flashed successfully" >> $GITHUB_STEP_SUMMARY
           else
-            echo "� Firmware flash failed (device may be offline)" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Firmware flash failed (device may be offline)" >> $GITHUB_STEP_SUMMARY
             echo "Firmware binary saved as artifact for manual flashing" >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -343,7 +336,7 @@ jobs:
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
-        if: always()
+        if: hashFiles('firmware/firmware.bin') != ''
         with:
           name: particle-firmware
           path: firmware/firmware.bin
@@ -351,13 +344,24 @@ jobs:
 
       - name: Firmware deployment summary
         if: always()
+        env:
+          PARTICLE_TOKEN: ${{ secrets.PARTICLE_ACCESS_TOKEN }}
         run: |
           echo "## Firmware Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Device**: garage-door-opener" >> $GITHUB_STEP_SUMMARY
-          echo "- **Firmware**: Available as artifact" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To manually flash firmware:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "particle flash garage-door-opener firmware.bin" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          if [ -z "$PARTICLE_TOKEN" ]; then
+            echo "- **Status**: ⚠️ Skipped (PARTICLE_ACCESS_TOKEN not configured)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Device**: garage-door-opener" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To enable automated firmware deployment, add the PARTICLE_ACCESS_TOKEN secret to your repository." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Device**: garage-door-opener" >> $GITHUB_STEP_SUMMARY
+            echo "- **Firmware**: Available as artifact" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Manual Flashing" >> $GITHUB_STEP_SUMMARY
+            echo "If automatic flashing failed, download the artifact and flash manually:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "particle flash garage-door-opener firmware.bin" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
