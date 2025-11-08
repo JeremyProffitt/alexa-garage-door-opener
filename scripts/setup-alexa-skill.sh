@@ -64,62 +64,28 @@ configure_ask_cli() {
         # Create ASK CLI config directory
         mkdir -p ~/.ask
 
-        # Create temporary cli_config with LWA refresh token (without vendor ID for now)
+        # The ASK CLI v2 can use environment variables for authentication
+        # Set up the config to use the refresh token
+        # The vendor_id will be automatically fetched by ask deploy command
         cat > ~/.ask/cli_config << EOF
 {
   "profiles": {
     "default": {
       "aws_profile": "default",
       "token": {
-        "access_token": "$ALEXA_LWA_TOKEN",
+        "access_token": "",
         "refresh_token": "$ALEXA_LWA_TOKEN",
         "token_type": "bearer",
         "expires_in": 3600,
-        "expires_at": "$(date -u +"%Y-%m-%dT%H:%M:%S.000Z" -d "+1 hour" 2>/dev/null || date -u -v+1H +"%Y-%m-%dT%H:%M:%S.000Z" 2>/dev/null)"
-      },
-      "vendor_id": ""
+        "expires_at": "1970-01-01T00:00:00.000Z"
+      }
     }
   }
 }
 EOF
 
-        # Get vendor ID from ASK API
-        print_status "Fetching vendor ID from Amazon..."
-        VENDOR_ID=$(ask smapi list-vendors 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-
-        if [ -z "$VENDOR_ID" ]; then
-            print_error "Failed to fetch vendor ID from Amazon"
-            echo "This typically means:"
-            echo "  1. Invalid or expired ALEXA_LWA_TOKEN"
-            echo "  2. Token doesn't have proper permissions"
-            echo "  3. No vendor account associated with this token"
-            echo ""
-            echo "Please verify your ALEXA_LWA_TOKEN is a valid LWA refresh token"
-            exit 1
-        fi
-
-        print_success "Vendor ID: $VENDOR_ID"
-
-        # Update cli_config with vendor ID
-        cat > ~/.ask/cli_config << EOF
-{
-  "profiles": {
-    "default": {
-      "aws_profile": "default",
-      "token": {
-        "access_token": "$ALEXA_LWA_TOKEN",
-        "refresh_token": "$ALEXA_LWA_TOKEN",
-        "token_type": "bearer",
-        "expires_in": 3600,
-        "expires_at": "$(date -u +"%Y-%m-%dT%H:%M:%S.000Z" -d "+1 hour" 2>/dev/null || date -u -v+1H +"%Y-%m-%dT%H:%M:%S.000Z" 2>/dev/null)"
-      },
-      "vendor_id": "$VENDOR_ID"
-    }
-  }
-}
-EOF
-
-        print_success "ASK CLI configured with LWA token and vendor ID"
+        print_success "ASK CLI configured with LWA refresh token"
+        print_status "Vendor ID will be automatically fetched during deployment"
     else
         # Check if manually configured
         if [ ! -f ~/.ask/cli_config ]; then
