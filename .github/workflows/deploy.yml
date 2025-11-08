@@ -290,10 +290,13 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
             echo "Check the deployment logs above for error details." >> $GITHUB_STEP_SUMMARY
-            echo "Common issues:" >> $GITHUB_STEP_SUMMARY
-            echo "- Invalid or expired ALEXA_LWA_TOKEN" >> $GITHUB_STEP_SUMMARY
-            echo "- Missing vendor ID in ASK CLI configuration" >> $GITHUB_STEP_SUMMARY
-            echo "- Network connectivity issues" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### How to get a valid ALEXA_LWA_TOKEN:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Install ASK CLI: \`npm install -g ask-cli\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. Run: \`ask configure\`" >> $GITHUB_STEP_SUMMARY
+            echo "3. Follow the login prompts in your browser" >> $GITHUB_STEP_SUMMARY
+            echo "4. Copy the refresh token from \`~/.ask/cli_config\`" >> $GITHUB_STEP_SUMMARY
+            echo "5. Update the ALEXA_LWA_TOKEN secret in GitHub repository settings" >> $GITHUB_STEP_SUMMARY
           fi
 
   deploy-firmware:

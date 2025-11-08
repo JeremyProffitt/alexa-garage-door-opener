@@ -216,13 +216,27 @@ deploy_skill() {
         echo "Error log:"
         cat /tmp/ask-deploy.log
         echo ""
-        print_warning "Please check the error above"
-        echo ""
-        echo "Common issues:"
-        echo "  - Invalid or expired ALEXA_LWA_TOKEN"
-        echo "  - Missing or invalid vendor ID"
-        echo "  - Skill manifest validation errors"
-        echo "  - Network connectivity issues"
+
+        # Check for specific error types
+        if grep -q "invalid_grant" /tmp/ask-deploy.log; then
+            print_error "Invalid or expired ALEXA_LWA_TOKEN detected"
+            echo ""
+            echo "The refresh token has been revoked or is invalid."
+            echo "To get a new LWA refresh token:"
+            echo "  1. Run: ask configure"
+            echo "  2. Follow the login prompts"
+            echo "  3. Copy the refresh token from ~/.ask/cli_config"
+            echo "  4. Update the ALEXA_LWA_TOKEN GitHub secret"
+            echo ""
+        else
+            print_warning "Please check the error above"
+            echo ""
+            echo "Common issues:"
+            echo "  - Invalid or expired ALEXA_LWA_TOKEN"
+            echo "  - Skill manifest validation errors"
+            echo "  - Network connectivity issues"
+            echo ""
+        fi
 
         cd ..
         return 1
